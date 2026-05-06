@@ -35,4 +35,28 @@ router.post('/absence', requireRole('admin'), (req, res) =>
   adminController.createAbsence(req, res)
 );
 
+router.get('/departments', requireRole('admin', 'manager'), (req, res) =>
+  adminController.listDepartments(req, res)
+);
+
+router.post('/departments', requireRole('admin'), (req, res) =>
+  adminController.createDepartment(req, res)
+);
+
+router.delete('/departments/:id', requireRole('admin'), (req, res) =>
+  adminController.deleteDepartment(req, res)
+);
+
+router.get('/positions', requireRole('admin', 'manager'), (req, res) =>
+  adminController.listPositions(req, res)
+);
+
+router.post('/positions', requireRole('admin'), (req, res) =>
+  adminController.createPosition(req, res)
+);
+
+router.delete('/positions/:id', requireRole('admin'), (req, res) =>
+  adminController.deletePosition(req, res)
+);
+
 module.exports = router;

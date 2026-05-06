@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Attendance System — Admin Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
@@ -25,6 +27,8 @@
     const state = {
       profile: null,
       staff: [],
+      departments: [],
+      positions: [],
       activeSection: 'overview'
     };
 
@@ -48,6 +52,31 @@
       node.style.display = text ? 'block' : 'none';
     }
 
+    // Custom confirmation modal (replaces browser confirm())
+    function showConfirmModal(message) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('confirmOverlay');
+        const msgEl = document.getElementById('confirmMessage');
+        const yesBtn = document.getElementById('confirmYes');
+        const noBtn = document.getElementById('confirmNo');
+
+        msgEl.textContent = message;
+        overlay.classList.remove('hidden');
+
+        function cleanup(result) {
+          overlay.classList.add('hidden');
+          yesBtn.removeEventListener('click', onYes);
+          noBtn.removeEventListener('click', onNo);
+          resolve(result);
+        }
+        function onYes() { cleanup(true); }
+        function onNo() { cleanup(false); }
+
+        yesBtn.addEventListener('click', onYes);
+        noBtn.addEventListener('click', onNo);
+      });
+    }
+
     async function getSessionToken() {
       const { data } = await supabase.auth.getSession();
       return data?.session?.access_token || null;
@@ -69,6 +98,16 @@
       });
 
       const payload = await response.json().catch(() => ({}));
+
+      // If token expired/invalid, redirect to login
+      if (response.status === 401) {
+        console.warn('[API] 401 Unauthorized — redirecting to login');
+        try { await supabase.auth.signOut(); } catch (_) {}
+        if (window.refreshInterval) clearInterval(window.refreshInterval);
+        window.location.href = '/login.html';
+        throw new Error('Session expired. Please sign in again.');
+      }
+
       if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
       return payload;
     }
@@ -85,10 +124,14 @@
 
     function updateHeader() {
       if (!state.profile) return;
-      qs('currentName').textContent = state.profile.full_name;
-      qs('currentRole').textContent = state.profile.role;
-      qs('rolePill').textContent = state.profile.role.toUpperCase();
-      qs('adminOnlyWrap').classList.toggle('hidden', state.profile.role !== 'admin');
+      const nameEl = qs('currentName');
+      const roleEl = qs('currentRole');
+      const pillEl = qs('rolePill');
+      const wrapEl = qs('adminOnlyWrap');
+      if (nameEl) nameEl.textContent = state.profile.full_name;
+      if (roleEl) roleEl.textContent = state.profile.role;
+      if (pillEl) pillEl.textContent = state.profile.role.toUpperCase();
+      if (wrapEl) wrapEl.classList.toggle('hidden', state.profile.role !== 'admin');
     }
 
     function renderOverview() {
@@ -96,10 +139,16 @@
       const activeStaff = state.staff.filter(s => s.status === 'active').length;
       const inactiveStaff = state.staff.filter(s => s.status === 'inactive').length;
 
-      qs('overviewTotalStaff').textContent = totalStaff;
-      qs('overviewActiveStaff').textContent = activeStaff;
-      qs('overviewInactiveStaff').textContent = inactiveStaff;
-      qs('overviewRole').textContent = state.profile?.role || '—';
+      const totalEl = qs('overviewTotalStaff');
+      const activeEl = qs('overviewActiveStaff');
+      const inactiveEl = qs('overviewInactiveStaff');
+      const roleEl = qs('overviewRole');
+      const recentEl = qs('recentStaffBody');
+
+      if (totalEl) totalEl.textContent = totalStaff;
+      if (activeEl) activeEl.textContent = activeStaff;
+      if (inactiveEl) inactiveEl.textContent = inactiveStaff;
+      if (roleEl) roleEl.textContent = state.profile?.role || '—';
 
       const activity = state.staff.slice(0, 5).map(row => `
         <tr>
@@ -109,7 +158,7 @@
           <td><span class="status-dot ${row.status === 'active' ? 'green' : 'gray'}"></span>${escapeHtml(row.status)}</td>
         </tr>
       `).join('');
-      qs('recentStaffBody').innerHTML = activity || `
+      if (recentEl) recentEl.innerHTML = activity || `
         <tr><td colspan="4" class="muted">No staff profiles yet.</td></tr>
       `;
     }
@@ -131,54 +180,174 @@
         </tr>
       `).join('');
 
-      qs('staffTableBody').innerHTML = rows || `
+      const tableEl = qs('staffTableBody');
+      const absenceEl = qs('absenceStaffSelect');
+
+      if (tableEl) tableEl.innerHTML = rows || `
         <tr><td colspan="8" class="muted">No staff profiles found.</td></tr>
       `;
 
-      qs('absenceStaffSelect').innerHTML = state.staff.length
+      if (absenceEl) absenceEl.innerHTML = state.staff.length
         ? state.staff.map(row => `<option value="${escapeHtml(row.id)}">${escapeHtml(row.staff_code)} — ${escapeHtml(row.full_name)}</option>`).join('')
         : '<option value="">No staff available</option>';
     }
 
-    function renderRoleMatrix() {
-      const cards = [
-        {
-          title: 'Admin',
-          subtitle: 'Full control',
-          items: ['Create staff profiles', 'Edit / deactivate staff', 'View attendance data', 'Manage settings']
-        },
-        {
-          title: 'Manager',
-          subtitle: 'Read-only reporting',
-          items: ['View staff', 'View attendance history', 'Review verification data', 'No write access']
-        },
-        {
-          title: 'Staff',
-          subtitle: 'Attendance source',
-          items: ['Scan QR', 'Pass location check', 'Pass Wi-Fi check', 'Attendance recorded automatically']
-        }
-      ];
+    // Roles Tab Logic
 
-      qs('roleCards').innerHTML = cards.map(card => `
-        <article class="role-card">
-          <div class="role-card-top">
-            <h3>${escapeHtml(card.title)}</h3>
-            <span>${escapeHtml(card.subtitle)}</span>
-          </div>
-          <ul>
-            ${card.items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
-          </ul>
-        </article>
-      `).join('');
+    async function loadRolesData() {
+      try {
+        const [deptRes, posRes] = await Promise.all([
+          api('/departments'),
+          api('/positions')
+        ]);
+
+        state.departments = deptRes.data || [];
+        state.positions = posRes.data || [];
+
+        renderDepartments();
+        renderPositions();
+        updateDepartmentDropdowns();
+      } catch (err) {
+        console.error('Error loading roles:', err);
+        setMessage(qs('roleMessage'), 'Failed to load roles: ' + err.message, false);
+      }
     }
 
+    function renderDepartments() {
+      const rows = state.departments.map(dept => `
+        <tr>
+          <td>${escapeHtml(dept.name)}</td>
+          <td>
+            <button class="icon-btn danger" data-delete-dept="${dept.id}">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+      qs('deptList').innerHTML = rows || `<tr><td colspan="2" class="muted">No departments created.</td></tr>`;
+    }
+
+    function renderPositions() {
+      const rows = state.positions.map(pos => `
+        <tr>
+          <td>${escapeHtml(pos.name)}</td>
+          <td>${escapeHtml(pos.departments?.name || '—')}</td>
+          <td>
+            <button class="icon-btn danger" data-delete-pos="${pos.id}">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+      qs('posList').innerHTML = rows || `<tr><td colspan="3" class="muted">No positions created.</td></tr>`;
+    }
+
+    function updateDepartmentDropdowns() {
+      const options = '<option value="">-- Choose Department --</option>' +
+        state.departments.map(d => `<option value="${d.id}" data-name="${escapeHtml(d.name)}">${escapeHtml(d.name)}</option>`).join('');
+
+      qs('posDeptSelect').innerHTML = options;
+
+      const staffOptions = '<option value="">Select Department</option>' +
+        state.departments.map(d => `<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)}</option>`).join('');
+      qs('staffDepartment').innerHTML = staffOptions;
+
+      updatePositionDropdown();
+    }
+
+    function updatePositionDropdown() {
+      const selectedDeptName = qs('staffDepartment').value;
+      const dept = state.departments.find(d => d.name === selectedDeptName);
+
+      if (!dept) {
+        qs('staffPosition').innerHTML = '<option value="">Select Position</option>';
+        return;
+      }
+
+      const deptPositions = state.positions.filter(p => p.department_id === dept.id);
+      qs('staffPosition').innerHTML = '<option value="">Select Position</option>' +
+        deptPositions.map(p => `<option value="${escapeHtml(p.name)}">${escapeHtml(p.name)}</option>`).join('');
+    }
+
+    async function createDepartment() {
+      const nameInput = qs('deptNameInput');
+      const name = nameInput.value.trim();
+      if (!name) return;
+
+      try {
+        await api('/departments', {
+          method: 'POST',
+          body: JSON.stringify({ name })
+        });
+        nameInput.value = '';
+        setMessage(qs('roleMessage'), 'Department created successfully');
+        await loadRolesData();
+      } catch (err) {
+        setMessage(qs('roleMessage'), 'Error creating department: ' + err.message, false);
+      }
+    }
+
+    async function createPosition() {
+      const nameInput = qs('posNameInput');
+      const deptSelect = qs('posDeptSelect');
+      const name = nameInput.value.trim();
+      const department_id = deptSelect.value;
+
+      if (!name || !department_id) {
+        setMessage(qs('roleMessage'), 'Both name and department are required', false);
+        return;
+      }
+
+      try {
+        await api('/positions', {
+          method: 'POST',
+          body: JSON.stringify({ name, department_id })
+        });
+        nameInput.value = '';
+        setMessage(qs('roleMessage'), 'Position created successfully');
+        await loadRolesData();
+      } catch (err) {
+        setMessage(qs('roleMessage'), 'Error creating position: ' + err.message, false);
+      }
+    }
+
+    async function handleDeptActions(e) {
+      const btn = e.target.closest('[data-delete-dept]');
+      if (btn) {
+        const dept = state.departments.find(d => d.id === btn.dataset.deleteDept);
+        const name = dept ? dept.name : 'this department';
+        const confirmed = await showConfirmModal(`Are you sure you want to delete "${name}"? This will also delete all positions in this department.`);
+        if (!confirmed) return;
+        try {
+          await api(`/departments/${btn.dataset.deleteDept}`, { method: 'DELETE' });
+          setMessage(qs('roleMessage'), 'Department deleted');
+          await loadRolesData();
+        } catch (err) {
+          setMessage(qs('roleMessage'), 'Error deleting department: ' + err.message, false);
+        }
+      }
+    }
+
+    async function handlePosActions(e) {
+      const btn = e.target.closest('[data-delete-pos]');
+      if (btn) {
+        const pos = state.positions.find(p => p.id === btn.dataset.deletePos);
+        const name = pos ? pos.name : 'this position';
+        const confirmed = await showConfirmModal(`Are you sure you want to delete "${name}"?`);
+        if (!confirmed) return;
+        try {
+          await api(`/positions/${btn.dataset.deletePos}`, { method: 'DELETE' });
+          setMessage(qs('roleMessage'), 'Position deleted');
+          await loadRolesData();
+        } catch (err) {
+          setMessage(qs('roleMessage'), 'Error deleting position: ' + err.message, false);
+        }
+      }
+    }
+
+    // Roles Logic
+
+
+    // renderRoleMatrix removed — replaced by dynamic dept/position management
+
     function renderVerificationPanel() {
-      qs('verificationSummary').innerHTML = `
-        <div class="verify-stat"><strong>QR</strong><span>Generated in staff app flow</span></div>
-        <div class="verify-stat"><strong>Location</strong><span>Geofence enabled</span></div>
-        <div class="verify-stat"><strong>Network</strong><span>Wi‑Fi / IP rules</span></div>
-        <div class="verify-stat"><strong>Record</strong><span>Supabase insert only</span></div>
-      `;
+      // Verification logic is now handled by admin-verification.js
     }
 
     function populateEditForm(row) {
@@ -186,6 +355,7 @@
       qs('staffCode').value = row.staff_code || '';
       qs('staffName').value = row.full_name || '';
       qs('staffDepartment').value = row.department || '';
+      updatePositionDropdown();
       qs('staffPosition').value = row.position || '';
       qs('staffEmail').value = row.email || '';
       qs('staffPhone').value = row.phone || '';
@@ -201,6 +371,7 @@
       qs('staffCode').value = '';
       qs('staffName').value = '';
       qs('staffDepartment').value = '';
+      updatePositionDropdown();
       qs('staffPosition').value = '';
       qs('staffEmail').value = '';
       qs('staffPhone').value = '';
@@ -221,45 +392,25 @@
       state.staff = result.data || [];
       renderStaffTable();
       renderOverview();
-      renderRoleMatrix();
-      renderVerificationPanel();
     }
 
     async function refreshAll() {
       await loadMe();
       await loadStaff();
+      await loadRolesData();
     }
 
-    async function signIn() {
-      setMessage(qs('loginMessage'), '');
-      const email = qs('emailInput').value.trim();
-      const password = qs('passwordInput').value;
-
-      if (!email || !password) {
-        setMessage(qs('loginMessage'), 'Email and password are required', false);
-        return;
-      }
-
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        setMessage(qs('loginMessage'), error.message, false);
-        return;
-      }
-
-      qs('loginPanel').classList.add('hidden');
-      qs('dashboard').classList.remove('hidden');
-      qs('signOutBtn').classList.remove('hidden');
-      await refreshAll();
-      setSection('overview');
-    }
 
     async function signOut() {
-      await supabase.auth.signOut();
-      qs('loginPanel').classList.remove('hidden');
-      qs('dashboard').classList.add('hidden');
-      qs('signOutBtn').classList.add('hidden');
-      state.profile = null;
-      state.staff = [];
+      console.log('[SIGNOUT] Sign out triggered');
+      if (window.refreshInterval) clearInterval(window.refreshInterval);
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.error('[SIGNOUT] Supabase signOut error (ignored):', err);
+      }
+      // Redirect to login page
+      window.location.href = '/login.html';
     }
 
     async function submitStaffForm() {
@@ -304,116 +455,156 @@
     }
 
     async function deleteStaff(id) {
-      if (!confirm('Delete this staff profile?')) return;
+      const person = state.staff.find(s => s.id === id);
+      const name = person ? person.full_name : 'this staff member';
+      const confirmed = await showConfirmModal(`Are you sure you want to delete "${name}"?`);
+      if (!confirmed) return;
       try {
         await api(`/staff/${id}`, { method: 'DELETE' });
         await loadStaff();
       } catch (err) {
-        alert(err.message);
+        setMessage(qs('staffMessage'), err.message, false);
       }
     }
 
     async function handleTableActions(event) {
-      const editId = event.target.getAttribute('data-edit-staff');
-      const deleteId = event.target.getAttribute('data-delete-staff');
+      const editBtn = event.target.closest('[data-edit-staff]');
+      const deleteBtn = event.target.closest('[data-delete-staff]');
 
-      if (editId) {
-        const row = state.staff.find(item => item.id === editId);
+      if (editBtn) {
+        const row = state.staff.find(item => item.id === editBtn.dataset.editStaff);
         if (row) populateEditForm(row);
       }
 
-      if (deleteId) {
-        await deleteStaff(deleteId);
+      if (deleteBtn) {
+        await deleteStaff(deleteBtn.dataset.deleteStaff);
       }
     }
 
     async function loadSession() {
       const { data } = await supabase.auth.getSession();
       if (!data?.session) {
-        qs('loginPanel').classList.remove('hidden');
-        qs('dashboard').classList.add('hidden');
-        qs('signOutBtn').classList.add('hidden');
+        // Not logged in, redirect to login page
+        window.location.href = '/login.html';
         return;
       }
 
-      qs('loginPanel').classList.add('hidden');
       qs('dashboard').classList.remove('hidden');
       qs('signOutBtn').classList.remove('hidden');
 
       try {
         await refreshAll();
         setSection('overview');
+
+        // Setup auto-refresh every 10 seconds
+        if (window.refreshInterval) clearInterval(window.refreshInterval);
+        window.refreshInterval = setInterval(async () => {
+          if (qs('dashboard').classList.contains('hidden')) return;
+          try {
+            await Promise.all([loadStaff(), loadRolesData()]);
+          } catch (err) {
+            console.error('Auto-refresh error:', err);
+          }
+        }, 10000);
+
       } catch (err) {
-        console.error(err);
-        setMessage(qs('loginMessage'), err.message, false);
-        qs('loginPanel').classList.remove('hidden');
-        qs('dashboard').classList.add('hidden');
+        console.error('[loadSession] Error during refresh:', err);
+        // Force sign out on any auth error
+        try { await supabase.auth.signOut(); } catch (_) {}
+        window.location.href = '/login.html';
       }
     }
 
-    document.addEventListener('DOMContentLoaded', async () => {
-      el.root = document.documentElement;
+    // Init — module scripts are deferred, so DOM is ready when this runs
+    async function init() {
+      try {
+        console.log('[INIT] Starting initialization...');
+        el.root = document.documentElement;
 
-      // DOM refs
-      [
-        'loginPanel','dashboard','signOutBtn','loginMessage','emailInput','passwordInput','currentName','currentRole',
-        'rolePill','adminOnlyWrap','overviewTotalStaff','overviewActiveStaff','overviewInactiveStaff','overviewRole',
-        'recentStaffBody','staffTableBody','absenceStaffSelect','verificationSummary','roleCards','staffMessage',
-        'staffFormTitle','staffSubmit','staffCancel','staffId','staffCode','staffName','staffDepartment','staffPosition',
-        'staffEmail','staffPhone','staffStatus','settingsVenueName','settingsWifi','settingsRadius','settingsLatitude',
-        'settingsLongitude','settingsApiStatus'
-      ].forEach(id => el[id] = qs(id));
+        // DOM refs
+        [
+          'dashboard', 'signOutBtn', 'currentName', 'currentRole',
+          'rolePill', 'adminOnlyWrap', 'overviewTotalStaff', 'overviewActiveStaff', 'overviewInactiveStaff', 'overviewRole',
+          'recentStaffBody', 'staffTableBody', 'absenceStaffSelect', 'roleCards', 'staffMessage',
+          'staffFormTitle', 'staffSubmit', 'staffCancel', 'staffId', 'staffCode', 'staffName', 'staffDepartment', 'staffPosition',
+          'staffEmail', 'staffPhone', 'staffStatus', 'settingsVenueName', 'settingsWifi', 'settingsRadius', 'settingsLatitude',
+          'settingsLongitude', 'settingsApiStatus',
+          'deptNameInput', 'btnCreateDept', 'deptList',
+          'posDeptSelect', 'posNameInput', 'btnCreatePos', 'posList',
+          'roleMessage'
+        ].forEach(id => el[id] = qs(id));
 
-      document.querySelectorAll('[data-nav]').forEach(btn => {
-        btn.addEventListener('click', () => setSection(btn.dataset.nav));
-      });
-
-      qs('btnSignIn').addEventListener('click', signIn);
-      qs('signOutBtn').addEventListener('click', signOut);
-      qs('staffSubmit').addEventListener('click', submitStaffForm);
-      qs('staffCancel').addEventListener('click', () => resetStaffForm());
-      qs('staffTableBody').addEventListener('click', handleTableActions);
-
-      // Allow Enter to submit login
-      [qs('emailInput'), qs('passwordInput')].forEach(input => {
-        input.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') signIn();
+        document.querySelectorAll('[data-nav]').forEach(btn => {
+          btn.addEventListener('click', () => setSection(btn.dataset.nav));
         });
-      });
 
-      // Simple local settings that you can later wire to Supabase
-      qs('settingsVenueName').value = localStorage.getItem('venueName') || 'KANOPI';
-      qs('settingsWifi').value = localStorage.getItem('wifiName') || 'Office_Wifi';
-      qs('settingsRadius').value = localStorage.getItem('geoRadius') || '100';
-      qs('settingsLatitude').value = localStorage.getItem('geoLat') || '0';
-      qs('settingsLongitude').value = localStorage.getItem('geoLng') || '0';
+        // Attach event listeners with null checks
+        const bind = (id, evt, fn) => { const e = qs(id); if (e) { e.addEventListener(evt, fn); } };
 
-      qs('btnSaveSettings').addEventListener('click', () => {
-        localStorage.setItem('venueName', qs('settingsVenueName').value.trim());
-        localStorage.setItem('wifiName', qs('settingsWifi').value.trim());
-        localStorage.setItem('geoRadius', qs('settingsRadius').value.trim());
-        localStorage.setItem('geoLat', qs('settingsLatitude').value.trim());
-        localStorage.setItem('geoLng', qs('settingsLongitude').value.trim());
-        setMessage(qs('settingsMessage'), 'Settings saved locally in the browser for now.');
-      });
+        bind('signOutBtn', 'click', signOut);
+        bind('staffSubmit', 'click', submitStaffForm);
+        bind('staffCancel', 'click', () => resetStaffForm());
+        bind('staffTableBody', 'click', handleTableActions);
+        bind('btnCreateDept', 'click', createDepartment);
+        bind('btnCreatePos', 'click', createPosition);
+        bind('deptList', 'click', handleDeptActions);
+        bind('posList', 'click', handlePosActions);
+        bind('staffDepartment', 'change', updatePositionDropdown);
 
-      qs('btnResetSettings').addEventListener('click', () => {
-        ['venueName','wifiName','geoRadius','geoLat','geoLng'].forEach(key => localStorage.removeItem(key));
-        qs('settingsVenueName').value = 'KANOPI';
-        qs('settingsWifi').value = 'Office_Wifi';
-        qs('settingsRadius').value = '100';
-        qs('settingsLatitude').value = '0';
-        qs('settingsLongitude').value = '0';
-        setMessage(qs('settingsMessage'), 'Settings reset.');
-      });
+        // Simple local settings
+        const settingsEl = qs('settingsVenueName');
+        if (settingsEl) {
+          settingsEl.value = localStorage.getItem('venueName') || 'KANOPI';
+          qs('settingsWifi').value = localStorage.getItem('wifiName') || 'Office_Wifi';
+          qs('settingsRadius').value = localStorage.getItem('geoRadius') || '100';
+          qs('settingsLatitude').value = localStorage.getItem('geoLat') || '0';
+          qs('settingsLongitude').value = localStorage.getItem('geoLng') || '0';
+        }
 
-      await loadSession();
+        bind('btnSaveSettings', 'click', () => {
+          localStorage.setItem('venueName', qs('settingsVenueName').value.trim());
+          localStorage.setItem('wifiName', qs('settingsWifi').value.trim());
+          localStorage.setItem('geoRadius', qs('settingsRadius').value.trim());
+          localStorage.setItem('geoLat', qs('settingsLatitude').value.trim());
+          localStorage.setItem('geoLng', qs('settingsLongitude').value.trim());
+          setMessage(qs('settingsMessage'), 'Settings saved locally in the browser for now.');
+        });
 
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session) await loadSession();
-        if (event === 'SIGNED_OUT') await signOut();
-      });
-    });
+        bind('btnResetSettings', 'click', () => {
+          ['venueName', 'wifiName', 'geoRadius', 'geoLat', 'geoLng'].forEach(key => localStorage.removeItem(key));
+          qs('settingsVenueName').value = 'KANOPI';
+          qs('settingsWifi').value = 'Office_Wifi';
+          qs('settingsRadius').value = '100';
+          qs('settingsLatitude').value = '0';
+          qs('settingsLongitude').value = '0';
+          setMessage(qs('settingsMessage'), 'Settings reset.');
+        });
+
+        console.log('[INIT] Event listeners attached, loading session...');
+        await loadSession();
+        console.log('[INIT] Session loaded successfully');
+
+        supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'SIGNED_IN' && session) await loadSession();
+          if (event === 'SIGNED_OUT') {
+            window.location.href = '/login.html';
+          }
+        });
+      } catch (err) {
+        console.error('[INIT] Fatal error during initialization:', err);
+      }
+    }
+
+    // Expose functions to global scope so they work from anywhere
+    window.signOut = signOut;
+    window.deleteStaff = deleteStaff;
+
+    // Run init when DOM is ready (handles both cases)
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
   </script>
 
   <style>
@@ -440,8 +631,15 @@
       text-rendering: geometricPrecision;
     }
 
-    * { box-sizing: border-box; }
-    html, body { height: 100%; }
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
     body {
       margin: 0;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -449,8 +647,16 @@
       color: var(--text);
     }
 
-    button, input, select, textarea { font: inherit; }
-    button { cursor: pointer; }
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
 
     .app-shell {
       min-height: 100vh;
@@ -465,8 +671,8 @@
       justify-content: space-between;
       gap: 16px;
       padding: 16px 24px 14px 24px;
-      border-bottom: 1px solid rgba(0,0,0,0.08);
-      background: rgba(255,255,255,0.96);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      background: rgba(255, 255, 255, 0.96);
       backdrop-filter: blur(8px);
       position: sticky;
       top: 0;
@@ -492,11 +698,27 @@
       flex: 0 0 auto;
     }
 
-    .brand-mark img { width: 34px; height: 34px; object-fit: contain; display: block; }
+    .brand-mark img {
+      width: 34px;
+      height: 34px;
+      object-fit: contain;
+      display: block;
+    }
 
-    .brand-copy { display: grid; line-height: 1.05; }
-    .brand-copy strong { font-size: 24px; letter-spacing: -0.03em; }
-    .brand-copy span { font-size: 14px; color: var(--muted); }
+    .brand-copy {
+      display: grid;
+      line-height: 1.05;
+    }
+
+    .brand-copy strong {
+      font-size: 24px;
+      letter-spacing: -0.03em;
+    }
+
+    .brand-copy span {
+      font-size: 14px;
+      color: var(--muted);
+    }
 
     .project-code {
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -514,9 +736,9 @@
     }
 
     .sidebar {
-      border-right: 1px solid rgba(0,0,0,0.10);
+      border-right: 1px solid rgba(0, 0, 0, 0.10);
       padding: 16px 12px;
-      background: rgba(255,255,255,0.68);
+      background: rgba(255, 255, 255, 0.68);
       backdrop-filter: blur(8px);
     }
 
@@ -535,15 +757,18 @@
       border-radius: 14px;
       padding: 12px 14px;
       background: linear-gradient(180deg, #fcfcfc 0%, #f0f0f0 100%);
-      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
       color: #111;
       transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
     }
 
-    .nav-btn:hover { transform: translateY(-1px); }
+    .nav-btn:hover {
+      transform: translateY(-1px);
+    }
+
     .nav-btn.active {
-      background: linear-gradient(90deg, rgba(91,75,255,0.20), rgba(168,85,247,0.14));
-      box-shadow: inset 0 0 0 1px rgba(91,75,255,0.12), 0 10px 20px rgba(91,75,255,0.10);
+      background: linear-gradient(90deg, rgba(91, 75, 255, 0.20), rgba(168, 85, 247, 0.14));
+      box-shadow: inset 0 0 0 1px rgba(91, 75, 255, 0.12), 0 10px 20px rgba(91, 75, 255, 0.10);
     }
 
     .nav-icon {
@@ -570,11 +795,20 @@
       animation: fadeIn .18s ease;
     }
 
-    .panel.is-active { display: block; }
+    .panel.is-active {
+      display: block;
+    }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(3px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(3px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .hero {
@@ -610,15 +844,18 @@
     .role-pill {
       padding: 10px 14px;
       border-radius: 999px;
-      background: linear-gradient(90deg, rgba(91,75,255,0.14), rgba(168,85,247,0.10));
-      box-shadow: inset 0 0 0 1px rgba(91,75,255,0.10);
+      background: linear-gradient(90deg, rgba(91, 75, 255, 0.14), rgba(168, 85, 247, 0.10));
+      box-shadow: inset 0 0 0 1px rgba(91, 75, 255, 0.10);
       font-size: 14px;
       font-weight: 700;
       letter-spacing: 0.06em;
       color: #3f3fdd;
     }
 
-    .ghost-btn, .danger-btn, .primary-btn, .icon-btn {
+    .ghost-btn,
+    .danger-btn,
+    .primary-btn,
+    .icon-btn {
       border: 0;
       border-radius: 14px;
       padding: 12px 16px;
@@ -626,10 +863,30 @@
       transition: transform .14s ease, opacity .14s ease, box-shadow .14s ease;
     }
 
-    .ghost-btn, .icon-btn { background: #fff; color: #111; box-shadow: inset 0 0 0 1px var(--border); }
-    .ghost-btn:hover, .danger-btn:hover, .primary-btn:hover, .icon-btn:hover { transform: translateY(-1px); }
-    .primary-btn { background: linear-gradient(90deg, #141d33, #0f172a); color: #fff; box-shadow: 0 12px 26px rgba(15, 23, 42, 0.16); }
-    .danger-btn { background: linear-gradient(90deg, #b42318, #ef4444); color: #fff; }
+    .ghost-btn,
+    .icon-btn {
+      background: #fff;
+      color: #111;
+      box-shadow: inset 0 0 0 1px var(--border);
+    }
+
+    .ghost-btn:hover,
+    .danger-btn:hover,
+    .primary-btn:hover,
+    .icon-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .primary-btn {
+      background: linear-gradient(90deg, #141d33, #0f172a);
+      color: #fff;
+      box-shadow: 0 12px 26px rgba(15, 23, 42, 0.16);
+    }
+
+    .danger-btn {
+      background: linear-gradient(90deg, #b42318, #ef4444);
+      color: #fff;
+    }
 
     .grid-4 {
       display: grid;
@@ -638,11 +895,12 @@
       margin-bottom: 16px;
     }
 
-    .stat-card, .card {
-      background: rgba(255,255,255,0.96);
+    .stat-card,
+    .card {
+      background: rgba(255, 255, 255, 0.96);
       border-radius: var(--radius-xl);
       box-shadow: var(--shadow);
-      border: 1px solid rgba(255,255,255,0.72);
+      border: 1px solid rgba(255, 255, 255, 0.72);
     }
 
     .stat-card {
@@ -652,11 +910,27 @@
       align-content: space-between;
     }
 
-    .stat-card .label { color: var(--muted); font-size: 14px; }
-    .stat-card .value { font-size: 42px; line-height: 1; letter-spacing: -0.06em; font-weight: 800; }
-    .stat-card .hint { color: var(--muted); font-size: 13px; }
+    .stat-card .label {
+      color: var(--muted);
+      font-size: 14px;
+    }
 
-    .card { padding: 20px; margin-bottom: 16px; }
+    .stat-card .value {
+      font-size: 42px;
+      line-height: 1;
+      letter-spacing: -0.06em;
+      font-weight: 800;
+    }
+
+    .stat-card .hint {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .card {
+      padding: 20px;
+      margin-bottom: 16px;
+    }
 
     .card-title-row {
       display: flex;
@@ -672,7 +946,10 @@
       letter-spacing: -0.05em;
     }
 
-    .card-title-row span { color: var(--muted); font-size: 14px; }
+    .card-title-row span {
+      color: var(--muted);
+      font-size: 14px;
+    }
 
     .two-col {
       display: grid;
@@ -684,18 +961,48 @@
       border-radius: var(--radius-lg);
       background: linear-gradient(180deg, #fff, #f8f8fb);
       box-shadow: var(--shadow-soft);
-      border: 1px solid rgba(0,0,0,0.08);
+      border: 1px solid rgba(0, 0, 0, 0.08);
       padding: 16px;
     }
 
-    .mini-card h3 { margin: 0 0 10px; font-size: 18px; letter-spacing: -0.04em; }
-    .muted { color: var(--muted); }
+    .mini-card h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      letter-spacing: -0.04em;
+    }
 
-    .table-wrap { overflow: auto; border-radius: 18px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 14px 10px; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.08); font-size: 14px; }
-    th { color: #111; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; }
-    tr:last-child td { border-bottom: 0; }
+    .muted {
+      color: var(--muted);
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border-radius: 18px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 14px 10px;
+      text-align: left;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      font-size: 14px;
+    }
+
+    th {
+      color: #111;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
 
     .badge {
       display: inline-flex;
@@ -708,9 +1015,21 @@
       text-transform: uppercase;
       letter-spacing: 0.06em;
     }
-    .badge-green { background: rgba(6,118,71,0.10); color: var(--success); }
-    .badge-gray { background: rgba(102,112,133,0.10); color: #5f6b7a; }
-    .badge-blue { background: rgba(91,75,255,0.14); color: #3f3fdd; }
+
+    .badge-green {
+      background: rgba(6, 118, 71, 0.10);
+      color: var(--success);
+    }
+
+    .badge-gray {
+      background: rgba(102, 112, 133, 0.10);
+      color: #5f6b7a;
+    }
+
+    .badge-blue {
+      background: rgba(91, 75, 255, 0.14);
+      color: #3f3fdd;
+    }
 
     .status-dot {
       width: 8px;
@@ -720,8 +1039,14 @@
       margin-right: 8px;
       vertical-align: middle;
     }
-    .status-dot.green { background: #10b981; }
-    .status-dot.gray { background: #9ca3af; }
+
+    .status-dot.green {
+      background: #10b981;
+    }
+
+    .status-dot.gray {
+      background: #9ca3af;
+    }
 
     .form-grid {
       display: grid;
@@ -735,10 +1060,10 @@
       width: 100%;
       min-height: 48px;
       border-radius: 14px;
-      border: 1px solid rgba(0,0,0,0.16);
+      border: 1px solid rgba(0, 0, 0, 0.16);
       padding: 12px 14px;
       background: #fff;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 2px rgba(0,0,0,0.03);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 2px rgba(0, 0, 0, 0.03);
       outline: none;
       transition: border-color .14s ease, box-shadow .14s ease;
     }
@@ -746,19 +1071,41 @@
     .input:focus,
     .select:focus,
     .textarea:focus {
-      border-color: rgba(91,75,255,0.55);
-      box-shadow: 0 0 0 4px rgba(91,75,255,0.10);
+      border-color: rgba(91, 75, 255, 0.55);
+      box-shadow: 0 0 0 4px rgba(91, 75, 255, 0.10);
     }
 
-    .textarea { min-height: 120px; resize: vertical; }
+    .textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
 
-    .field { display: grid; gap: 8px; }
-    .field label { font-size: 13px; color: #1f2937; font-weight: 600; }
+    .field {
+      display: grid;
+      gap: 8px;
+    }
 
-    .full-span-2 { grid-column: span 2; }
-    .full-span-3 { grid-column: span 3; }
-    .full-span-4 { grid-column: span 4; }
-    .full-span-6 { grid-column: 1 / -1; }
+    .field label {
+      font-size: 13px;
+      color: #1f2937;
+      font-weight: 600;
+    }
+
+    .full-span-2 {
+      grid-column: span 2;
+    }
+
+    .full-span-3 {
+      grid-column: span 3;
+    }
+
+    .full-span-4 {
+      grid-column: span 4;
+    }
+
+    .full-span-6 {
+      grid-column: 1 / -1;
+    }
 
     .inline-actions {
       display: flex;
@@ -772,10 +1119,18 @@
       font-size: 14px;
       font-weight: 700;
     }
-    .message.ok { color: var(--success); }
-    .message.error { color: var(--danger); }
 
-    .hidden { display: none !important; }
+    .message.ok {
+      color: var(--success);
+    }
+
+    .message.error {
+      color: var(--danger);
+    }
+
+    .hidden {
+      display: none !important;
+    }
 
     .role-grid {
       display: grid;
@@ -785,7 +1140,7 @@
 
     .role-card {
       border-radius: 20px;
-      border: 1px solid rgba(0,0,0,0.08);
+      border: 1px solid rgba(0, 0, 0, 0.08);
       background: linear-gradient(180deg, #fff, #fafafa);
       padding: 18px;
       box-shadow: var(--shadow-soft);
@@ -799,10 +1154,26 @@
       margin-bottom: 10px;
     }
 
-    .role-card-top h3 { margin: 0; font-size: 20px; letter-spacing: -0.04em; }
-    .role-card-top span { color: var(--muted); font-size: 13px; }
-    .role-card ul { margin: 0; padding-left: 18px; color: #1f2937; }
-    .role-card li { margin: 8px 0; }
+    .role-card-top h3 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: -0.04em;
+    }
+
+    .role-card-top span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .role-card ul {
+      margin: 0;
+      padding-left: 18px;
+      color: #1f2937;
+    }
+
+    .role-card li {
+      margin: 8px 0;
+    }
 
     .verify-grid {
       display: grid;
@@ -812,7 +1183,7 @@
 
     .verify-stat {
       border-radius: 18px;
-      border: 1px solid rgba(0,0,0,0.08);
+      border: 1px solid rgba(0, 0, 0, 0.08);
       background: #fff;
       padding: 16px;
       box-shadow: var(--shadow-soft);
@@ -820,8 +1191,14 @@
       gap: 4px;
     }
 
-    .verify-stat strong { font-size: 18px; }
-    .verify-stat span { color: var(--muted); font-size: 13px; }
+    .verify-stat strong {
+      font-size: 18px;
+    }
+
+    .verify-stat span {
+      color: var(--muted);
+      font-size: 13px;
+    }
 
     .settings-grid {
       display: grid;
@@ -829,9 +1206,19 @@
       gap: 14px;
     }
 
-    .actions-cell { white-space: nowrap; }
-    .icon-btn { padding: 9px 12px; border-radius: 12px; margin-right: 8px; }
-    .icon-btn.danger { color: #b42318; }
+    .actions-cell {
+      white-space: nowrap;
+    }
+
+    .icon-btn {
+      padding: 9px 12px;
+      border-radius: 12px;
+      margin-right: 8px;
+    }
+
+    .icon-btn.danger {
+      color: #b42318;
+    }
 
     .login-screen {
       min-height: calc(100vh - 84px);
@@ -839,16 +1226,16 @@
       place-items: center;
       padding: 24px;
       background:
-        radial-gradient(circle at 50% 10%, rgba(91,75,255,0.06), transparent 30%),
+        radial-gradient(circle at 50% 10%, rgba(91, 75, 255, 0.06), transparent 30%),
         linear-gradient(180deg, #f8f8f8 0%, #ececec 100%);
     }
 
     .login-card {
       width: min(860px, 100%);
       border-radius: 34px;
-      background: rgba(255,255,255,0.94);
-      box-shadow: 0 30px 90px rgba(17,17,17,0.10);
-      border: 1px solid rgba(0,0,0,0.08);
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 30px 90px rgba(17, 17, 17, 0.10);
+      border: 1px solid rgba(0, 0, 0, 0.08);
       padding: clamp(20px, 4vw, 42px);
       position: relative;
       overflow: hidden;
@@ -860,7 +1247,7 @@
       inset: auto -80px -110px auto;
       width: 280px;
       height: 280px;
-      background: radial-gradient(circle, rgba(91,75,255,0.18), transparent 68%);
+      background: radial-gradient(circle, rgba(91, 75, 255, 0.18), transparent 68%);
       pointer-events: none;
     }
 
@@ -878,10 +1265,10 @@
       width: min(760px, 100%);
       margin-left: auto;
       border-radius: 34px;
-      border: 1px solid rgba(0,0,0,0.28);
+      border: 1px solid rgba(0, 0, 0, 0.28);
       background: linear-gradient(180deg, #ffffff 0%, #f3f3f3 100%);
       padding: 18px;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.75), 0 20px 30px rgba(0,0,0,0.05);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 20px 30px rgba(0, 0, 0, 0.05);
     }
 
     .login-grid {
@@ -895,11 +1282,11 @@
       width: 100%;
       min-height: 50px;
       border-radius: 14px;
-      border: 1px solid rgba(0,0,0,0.22);
+      border: 1px solid rgba(0, 0, 0, 0.22);
       padding: 14px 16px;
       outline: none;
       background: #fff;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 3px rgba(0,0,0,0.05);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 2px 3px rgba(0, 0, 0, 0.05);
     }
 
     .login-btn {
@@ -910,14 +1297,14 @@
       min-width: 260px;
       padding: 14px 24px;
       border-radius: 18px;
-      border: 1px solid rgba(0,0,0,0.30);
+      border: 1px solid rgba(0, 0, 0, 0.30);
       background: linear-gradient(90deg, #564cff, #7b3ef5);
       color: #fff;
       font-size: clamp(24px, 4vw, 44px);
       font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
       font-weight: 900;
       letter-spacing: 0.03em;
-      box-shadow: 0 12px 24px rgba(86,76,255,0.28);
+      box-shadow: 0 12px 24px rgba(86, 76, 255, 0.28);
     }
 
     .login-footer {
@@ -975,38 +1362,509 @@
 
     .login-btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 18px 32px rgba(86,76,255,0.36);
+      box-shadow: 0 18px 32px rgba(86, 76, 255, 0.36);
       transition: transform .15s ease, box-shadow .15s ease;
     }
 
+    /* ===== Verification Panel Styles ===== */
+    .verify-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+
+    .verify-tab-btn {
+      padding: 10px 20px;
+      border: 0;
+      border-radius: 14px 14px 0 0;
+      background: rgba(0, 0, 0, 0.04);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s ease;
+    }
+
+    .verify-tab-btn.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .verify-tab-content {
+      display: none;
+    }
+
+    .verify-tab-content.active {
+      display: block;
+    }
+
+    .v-result-banner {
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      padding: 18px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-left: 5px solid var(--muted);
+      transition: border-color .2s ease;
+    }
+
+    .v-result-banner.pass {
+      border-left-color: var(--success);
+    }
+
+    .v-result-banner.fail {
+      border-left-color: var(--danger);
+    }
+
+    .v-result-banner.warn {
+      border-left-color: #f59e0b;
+    }
+
+    .v-result-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      font-weight: 800;
+      background: rgba(0, 0, 0, 0.04);
+      flex: 0 0 auto;
+    }
+
+    .v-result-text {
+      flex: 1;
+    }
+
+    .v-result-text h2 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .v-result-text p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .v-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .v-card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      padding: 16px;
+    }
+
+    .v-card-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--primary);
+    }
+
+    .v-card-value {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 6px 0 2px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: -0.02em;
+    }
+
+    .v-card-detail {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .v-section {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .v-section-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin: 0 0 14px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--primary);
+      color: var(--primary);
+    }
+
+    .v-check-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .v-check-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      background: rgba(0, 0, 0, 0.02);
+      transition: background .15s ease;
+    }
+
+    .v-check-item.pass {
+      background: rgba(6, 118, 71, 0.06);
+      border-color: rgba(6, 118, 71, 0.15);
+    }
+
+    .v-check-item.fail {
+      background: rgba(180, 35, 24, 0.06);
+      border-color: rgba(180, 35, 24, 0.15);
+    }
+
+    .v-check-item.warn {
+      background: rgba(245, 158, 11, 0.06);
+      border-color: rgba(245, 158, 11, 0.15);
+    }
+
+    .v-check-status {
+      font-weight: 800;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .v-check-label {
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .v-check-detail {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .v-profile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1px;
+      background: rgba(0, 0, 0, 0.06);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .v-profile-item {
+      background: var(--surface);
+      padding: 12px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .v-profile-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .v-profile-value {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .v-prefix-tag {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: linear-gradient(90deg, rgba(91, 75, 255, 0.08), rgba(168, 85, 247, 0.06));
+      border: 1px solid rgba(91, 75, 255, 0.12);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: #3f3fdd;
+    }
+
+    .v-geo-gate {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .v-geo-gate h2 {
+      font-size: 24px;
+      letter-spacing: -0.04em;
+      margin-bottom: 8px;
+    }
+
+    .v-geo-gate p {
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .v-btn {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 20px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      background: linear-gradient(90deg, #564cff, #7b3ef5);
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(86, 76, 255, 0.2);
+      transition: transform .14s ease, box-shadow .14s ease;
+    }
+
+    .v-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(86, 76, 255, 0.3);
+    }
+
+    .v-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .v-map-wrap {
+      height: 320px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .v-spinner {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(91, 75, 255, 0.2);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: v-spin .7s linear infinite;
+    }
+
+    @keyframes v-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     @media (max-width: 1200px) {
-      .layout { grid-template-columns: 1fr; }
-      .sidebar { border-right: 0; border-bottom: 1px solid rgba(0,0,0,0.10); }
-      .nav-card { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-      .nav-label { font-size: 15px; }
-      .grid-4, .role-grid, .verify-grid, .settings-grid, .two-col { grid-template-columns: 1fr 1fr; }
-      .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .full-span-2, .full-span-3, .full-span-4 { grid-column: auto; }
-      .hero { flex-direction: column; }
-      .hero-right { justify-content: flex-start; }
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.10);
+      }
+
+      .nav-card {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .nav-label {
+        font-size: 15px;
+      }
+
+      .grid-4,
+      .role-grid,
+      .verify-grid,
+      .settings-grid,
+      .two-col {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .full-span-2,
+      .full-span-3,
+      .full-span-4 {
+        grid-column: auto;
+      }
+
+      .hero {
+        flex-direction: column;
+      }
+
+      .hero-right {
+        justify-content: flex-start;
+      }
+
+      .v-cards-grid {
+        grid-template-columns: 1fr 1fr;
+      }
     }
 
     @media (max-width: 720px) {
-      .topbar { height: auto; flex-direction: column; align-items: flex-start; }
-      .project-code { font-size: 18px; }
-      .nav-card { grid-template-columns: 1fr; }
-      .grid-4, .role-grid, .verify-grid, .settings-grid, .two-col, .form-grid { grid-template-columns: 1fr; }
-      .login-form { width: 100%; }
-      .login-btn { width: 100%; }
+      .topbar {
+        height: auto;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .project-code {
+        font-size: 18px;
+      }
+
+      .nav-card {
+        grid-template-columns: 1fr;
+      }
+
+      .grid-4,
+      .role-grid,
+      .verify-grid,
+      .settings-grid,
+      .two-col,
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .login-form {
+        width: 100%;
+      }
+
+      .login-btn {
+        width: 100%;
+      }
+
+      .v-cards-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ===== Custom Confirmation Modal ===== */
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(6px);
+      animation: confirmFadeIn 0.2s ease;
+    }
+
+    .confirm-overlay.hidden {
+      display: none !important;
+    }
+
+    @keyframes confirmFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .confirm-card {
+      background: #fff;
+      border-radius: 24px;
+      padding: 32px 36px;
+      max-width: 420px;
+      width: 90%;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.18);
+      text-align: center;
+      animation: confirmSlideUp 0.25s ease;
+    }
+
+    @keyframes confirmSlideUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .confirm-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: rgba(180, 35, 24, 0.08);
+      display: grid;
+      place-items: center;
+      margin: 0 auto 18px;
+    }
+
+    .confirm-message {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1f2937;
+      line-height: 1.5;
+      margin: 0 0 24px;
+    }
+
+    .confirm-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .confirm-cancel-btn {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 24px;
+      font-weight: 700;
+      font-size: 14px;
+      background: #f3f4f6;
+      color: #374151;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.12s ease;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+    }
+
+    .confirm-cancel-btn:hover {
+      background: #e5e7eb;
+      transform: translateY(-1px);
+    }
+
+    .confirm-delete-btn {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 24px;
+      font-weight: 700;
+      font-size: 14px;
+      background: linear-gradient(90deg, #b42318, #ef4444);
+      color: #fff;
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+      box-shadow: 0 8px 20px rgba(180, 35, 24, 0.25);
+    }
+
+    .confirm-delete-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(180, 35, 24, 0.35);
     }
   </style>
 </head>
+
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand">
         <div class="brand-mark">
-          <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14.01"/><line x1="12" y1="14" x2="12" y2="14.01"/><line x1="16" y1="14" x2="16" y2="14.01"/><line x1="8" y1="18" x2="8" y2="18.01"/><line x1="12" y1="18" x2="12" y2="18.01"/><line x1="16" y1="18" x2="16" y2="18.01"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+            <line x1="8" y1="14" x2="8" y2="14.01" />
+            <line x1="12" y1="14" x2="12" y2="14.01" />
+            <line x1="16" y1="14" x2="16" y2="14.01" />
+            <line x1="8" y1="18" x2="8" y2="18.01" />
+            <line x1="12" y1="18" x2="12" y2="18.01" />
+            <line x1="16" y1="18" x2="16" y2="18.01" />
+          </svg>
         </div>
         <div class="brand-copy">
           <strong>Attendance System</strong>
@@ -1016,57 +1874,55 @@
 
       <div class="hero-right">
         <div class="project-code">#EX4MPL3</div>
-        <button id="signOutBtn" class="ghost-btn hidden">Sign out</button>
+        <button id="signOutBtn" class="ghost-btn" onclick="window.signOut && window.signOut()">Sign out</button>
       </div>
     </header>
 
-    <main id="loginPanel" class="login-screen">
-      <section class="login-card">
-        <div class="login-brand">
-          <div class="login-brand-mark">
-            <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14.01"/><line x1="12" y1="14" x2="12" y2="14.01"/><line x1="16" y1="14" x2="16" y2="14.01"/><line x1="8" y1="18" x2="8" y2="18.01"/><line x1="12" y1="18" x2="12" y2="18.01"/><line x1="16" y1="18" x2="16" y2="18.01"/></svg>
-          </div>
-          <div class="login-brand-copy">
-            <strong>Attendance System</strong>
-            <span>Admin Portal</span>
-          </div>
-        </div>
-        <h1 class="login-title">Welcome back</h1>
-        <div class="login-form">
-          <div class="login-grid">
-            <input id="emailInput" class="login-input" type="email" placeholder="Email address" autocomplete="email" />
-            <input id="passwordInput" class="login-input" type="password" placeholder="Password" autocomplete="current-password" />
-            <button id="btnSignIn" class="login-btn">LOGIN</button>
-          </div>
-          <div class="login-footer">
-            <span>Sign in with your Supabase account.</span>
-            <span id="loginMessage" class="message" style="margin:0; display:none;"></span>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <div id="dashboard" class="layout hidden">
+    <div id="dashboard" class="layout">
       <aside class="sidebar">
         <nav class="nav-card">
           <button class="nav-btn active" data-nav="overview">
-            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path
+                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+              <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
             <span class="nav-label">Overview</span>
           </button>
           <button class="nav-btn" data-nav="verification">
-            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
             <span class="nav-label">Verification</span>
           </button>
           <button class="nav-btn" data-nav="people">
-            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
             <span class="nav-label">People</span>
           </button>
           <button class="nav-btn" data-nav="roles">
-            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
             <span class="nav-label">Roles</span>
           </button>
           <button class="nav-btn" data-nav="settings">
-            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
             <span class="nav-label">Settings</span>
           </button>
         </nav>
@@ -1150,11 +2006,170 @@
           <div class="hero">
             <div>
               <h1>Verification</h1>
-              <p>this .</p>
+              <p>Network and location validation for attendance verification.</p>
             </div>
           </div>
 
-          <div id="verificationSummary" class="verify-grid"></div>
+          <!-- Verify Tabs -->
+          <div class="verify-tabs">
+            <button class="verify-tab-btn active" data-vtab="network">Network Check</button>
+            <button class="verify-tab-btn" data-vtab="location">Location Check</button>
+          </div>
+
+          <!-- TAB 1: NETWORK CHECK -->
+          <div class="verify-tab-content active" id="vTabNetwork">
+            <div class="v-result-banner" id="vResultBanner">
+              <div class="v-result-icon" id="vResultIcon">?</div>
+              <div class="v-result-text">
+                <h2 id="vResultTitle">System Status: Idle</h2>
+                <p id="vResultSubtitle">Click refresh to begin diagnostics</p>
+              </div>
+              <button class="v-btn" id="vBtnCheck">Refresh</button>
+            </div>
+
+            <div class="v-cards-grid">
+              <div class="v-card">
+                <span class="v-card-label">IP Address</span>
+                <p class="v-card-value" id="vIpAddress">—</p>
+                <p class="v-card-detail" id="vIpVersion">Detecting…</p>
+              </div>
+              <div class="v-card">
+                <span class="v-card-label">ISP / Organization</span>
+                <p class="v-card-value" id="vIspName">—</p>
+                <p class="v-card-detail" id="vOrgName">Detecting…</p>
+              </div>
+              <div class="v-card">
+                <span class="v-card-label">ASN</span>
+                <p class="v-card-value" id="vAsnNumber">—</p>
+                <p class="v-card-detail" id="vAsnName">Detecting…</p>
+              </div>
+              <div class="v-card">
+                <span class="v-card-label">Location</span>
+                <p class="v-card-value" id="vLocation">—</p>
+                <p class="v-card-detail" id="vCoordinates">Detecting…</p>
+              </div>
+              <div class="v-card">
+                <span class="v-card-label">Timezone</span>
+                <p class="v-card-value" id="vTimezone">—</p>
+                <p class="v-card-detail" id="vTimezoneOffset">Detecting…</p>
+              </div>
+              <div class="v-card">
+                <span class="v-card-label">Network Type</span>
+                <p class="v-card-value" id="vConnType">—</p>
+                <p class="v-card-detail" id="vConnProxy">Detecting…</p>
+              </div>
+            </div>
+
+            <div class="v-section">
+              <h3 class="v-section-title">Validation Details</h3>
+              <div class="v-check-list">
+                <div class="v-check-item" id="vCheckAsn">
+                  <span class="v-check-status" id="vCheckAsnStatus">[?]</span>
+                  <div><span class="v-check-label">Network Validation</span> <span class="v-check-detail"
+                      id="vCheckAsnDetail">Pending check…</span></div>
+                </div>
+                <div class="v-check-item" id="vCheckPrefix">
+                  <span class="v-check-status" id="vCheckPrefixStatus">[?]</span>
+                  <div><span class="v-check-label">IP Range Validation</span> <span class="v-check-detail"
+                      id="vCheckPrefixDetail">Pending check…</span></div>
+                </div>
+                <div class="v-check-item" id="vCheckCountry">
+                  <span class="v-check-status" id="vCheckCountryStatus">[?]</span>
+                  <div><span class="v-check-label">Country Check (ID)</span> <span class="v-check-detail"
+                      id="vCheckCountryDetail">Pending check…</span></div>
+                </div>
+                <div class="v-check-item" id="vCheckProxy">
+                  <span class="v-check-status" id="vCheckProxyStatus">[?]</span>
+                  <div><span class="v-check-label">VPN/Proxy Filter</span> <span class="v-check-detail"
+                      id="vCheckProxyDetail">Pending check…</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="v-section">
+              <h3 class="v-section-title">Network Reference</h3>
+              <div class="v-profile-grid">
+                <div class="v-profile-item"><span class="v-profile-label">Organization</span><span
+                    class="v-profile-value" id="vRefOrg">Pustaka Dakwah</span></div>
+                <div class="v-profile-item"><span class="v-profile-label">ASN Number</span><span class="v-profile-value"
+                    id="vRefAsn">TBD</span></div>
+                <div class="v-profile-item"><span class="v-profile-label">Allowed Prefix</span><span
+                    class="v-profile-value">45.251.4.0/22</span></div>
+                <div class="v-profile-item"><span class="v-profile-label">IP Range</span><span
+                    class="v-profile-value">45.251.4.0 - 45.251.7.255</span></div>
+              </div>
+              <div class="v-prefix-tag" id="vRefPrefix">Target Network: AS38511 — Subnet 45.251.4.0/22</div>
+            </div>
+          </div>
+
+          <!-- TAB 2: LOCATION CHECK -->
+          <div class="verify-tab-content" id="vTabLocation">
+            <div class="v-geo-gate" id="vGeoGate">
+              <h2>GPS Access Required</h2>
+              <p>Please authorize location access to verify your position.</p>
+              <button class="v-btn" id="vBtnGeo">Authorize GPS</button>
+            </div>
+
+            <div id="vLocResults" style="display:none;">
+              <div class="v-result-banner" id="vLocBanner">
+                <div class="v-result-icon" id="vLocBannerIcon">?</div>
+                <div class="v-result-text">
+                  <h2 id="vLocBannerTitle">Acquiring Location...</h2>
+                  <p id="vLocBannerSubtitle">Waiting for satellite lock</p>
+                </div>
+                <button class="v-btn" id="vBtnRefreshLoc">Refresh GPS</button>
+              </div>
+
+              <div class="v-cards-grid">
+                <div class="v-card">
+                  <span class="v-card-label">Coordinates</span>
+                  <p class="v-card-value" id="vLocCoords">—</p>
+                  <p class="v-card-detail" id="vLocCoordsDetail">Waiting…</p>
+                </div>
+                <div class="v-card">
+                  <span class="v-card-label">Current Location</span>
+                  <p class="v-card-value" id="vLocLocation">—</p>
+                  <p class="v-card-detail" id="vLocLocationDetail">Waiting…</p>
+                </div>
+                <div class="v-card">
+                  <span class="v-card-label">Distance from Hub</span>
+                  <p class="v-card-value" id="vLocDistance">—</p>
+                  <p class="v-card-detail" id="vLocDistanceDetail">Waiting…</p>
+                </div>
+                <div class="v-card">
+                  <span class="v-card-label">GPS Accuracy</span>
+                  <p class="v-card-value" id="vLocAccuracy">—</p>
+                  <p class="v-card-detail" id="vLocAccuracyDetail">Waiting…</p>
+                </div>
+              </div>
+
+              <div class="v-section">
+                <h3 class="v-section-title">Location Map View</h3>
+                <div class="v-map-wrap" id="vMapContainer"></div>
+              </div>
+
+              <div class="v-section">
+                <h3 class="v-section-title">Geofence Validation</h3>
+                <div class="v-check-list">
+                  <div class="v-check-item" id="vCheckGeo">
+                    <span class="v-check-status" id="vCheckGeoStatus">[?]</span>
+                    <div><span class="v-check-label">GPS Metadata Valid</span> <span class="v-check-detail"
+                        id="vCheckGeoDetail">Pending…</span></div>
+                  </div>
+                  <div class="v-check-item" id="vCheckVenue">
+                    <span class="v-check-status" id="vCheckVenueStatus">[?]</span>
+                    <div><span class="v-check-label">Inside Pustaka Dakwah Boundary</span> <span class="v-check-detail"
+                        id="vCheckVenueDetail">Pending…</span></div>
+                  </div>
+                  <div class="v-check-item" id="vCheckAccuracy">
+                    <span class="v-check-status" id="vCheckAccuracyStatus">[?]</span>
+                    <div><span class="v-check-label">GPS Accuracy Check</span> <span class="v-check-detail"
+                        id="vCheckAccuracyDetail">Pending…</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section class="panel" data-section="people">
@@ -1187,11 +2202,15 @@
                 </div>
                 <div class="field full-span-2">
                   <label for="staffDepartment">Department</label>
-                  <input id="staffDepartment" class="input" type="text" placeholder="Department" />
+                  <select id="staffDepartment" class="select">
+                    <option value="">Select Department</option>
+                  </select>
                 </div>
                 <div class="field full-span-2">
                   <label for="staffPosition">Position</label>
-                  <input id="staffPosition" class="input" type="text" placeholder="Position" />
+                  <select id="staffPosition" class="select">
+                    <option value="">Select Position</option>
+                  </select>
                 </div>
                 <div class="field full-span-2">
                   <label for="staffEmail">Email</label>
@@ -1252,7 +2271,75 @@
             </div>
           </div>
 
-          <div id="roleCards" class="role-grid"></div>
+          <div id="roleMessage" class="message" style="display:none; margin-bottom: 16px;"></div>
+
+          <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+            <!-- Departments Management -->
+            <div class="card">
+              <div class="card-title-row">
+                <h2>Departments</h2>
+                <span>Manage organizational departments</span>
+              </div>
+              <div class="form-grid" style="margin-bottom: 20px;">
+                <div class="field full-span-2">
+                  <label for="deptNameInput">New Department Name</label>
+                  <div style="display: flex; gap: 8px;">
+                    <input id="deptNameInput" class="input" type="text" placeholder="e.g. Packaging" style="flex: 1;" />
+                    <button id="btnCreateDept" class="primary-btn"
+                      style="flex: 0 0 auto; min-width: 100px;">Create</button>
+                  </div>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Department</th>
+                      <th style="width: 80px;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="deptList"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Positions Management -->
+            <div class="card">
+              <div class="card-title-row">
+                <h2>Positions</h2>
+                <span>Manage roles within departments</span>
+              </div>
+              <div class="form-grid" style="margin-bottom: 20px;">
+                <div class="field full-span-2">
+                  <label for="posDeptSelect">Select Department</label>
+                  <select id="posDeptSelect" class="select">
+                    <option value="">-- Choose Department --</option>
+                  </select>
+                </div>
+                <div class="field full-span-2">
+                  <label for="posNameInput">New Position Name</label>
+                  <div style="display: flex; gap: 8px;">
+                    <input id="posNameInput" class="input" type="text" placeholder="e.g. Line Supervisor"
+                      style="flex: 1;" />
+                    <button id="btnCreatePos" class="primary-btn"
+                      style="flex: 0 0 auto; min-width: 100px;">Create</button>
+                  </div>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Position</th>
+                      <th>Department</th>
+                      <th style="width: 80px;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="posList"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section class="panel" data-section="settings">
@@ -1309,5 +2396,26 @@
       </section>
     </div>
   </div>
+  <!-- Custom Confirmation Modal -->
+  <div id="confirmOverlay" class="confirm-overlay hidden">
+    <div class="confirm-card">
+      <div class="confirm-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#b42318" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <p id="confirmMessage" class="confirm-message">Are you sure?</p>
+      <div class="confirm-actions">
+        <button id="confirmNo" class="confirm-cancel-btn" type="button">Cancel</button>
+        <button id="confirmYes" class="confirm-delete-btn" type="button">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="admin-verification.js"></script>
 </body>
+
 </html>

@@ -264,6 +264,113 @@ class AdminController {
       });
     }
   }
+  async listDepartments(req, res) {
+    try {
+      const { data, error } = await supabase
+        .from('departments')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+
+      return res.json({ success: true, data });
+    } catch (err) {
+      console.error('List departments error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async createDepartment(req, res) {
+    try {
+      const { name } = req.body;
+      if (!name) {
+        return res.status(400).json({ success: false, error: 'name is required' });
+      }
+
+      const { data, error } = await supabase
+        .from('departments')
+        .insert({ name: String(name).trim(), created_by: req.authUser.id })
+        .select('*')
+        .single();
+
+      if (error) throw error;
+
+      return res.status(201).json({ success: true, data });
+    } catch (err) {
+      console.error('Create department error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async deleteDepartment(req, res) {
+    try {
+      const { id } = req.params;
+      const { error } = await supabase.from('departments').delete().eq('id', id);
+
+      if (error) throw error;
+
+      return res.json({ success: true, message: 'Department deleted' });
+    } catch (err) {
+      console.error('Delete department error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async listPositions(req, res) {
+    try {
+      const { data, error } = await supabase
+        .from('positions')
+        .select(`*, departments(name)`)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+
+      return res.json({ success: true, data });
+    } catch (err) {
+      console.error('List positions error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async createPosition(req, res) {
+    try {
+      const { name, department_id } = req.body;
+      if (!name || !department_id) {
+        return res.status(400).json({ success: false, error: 'name and department_id are required' });
+      }
+
+      const { data, error } = await supabase
+        .from('positions')
+        .insert({
+          name: String(name).trim(),
+          department_id,
+          created_by: req.authUser.id
+        })
+        .select(`*, departments(name)`)
+        .single();
+
+      if (error) throw error;
+
+      return res.status(201).json({ success: true, data });
+    } catch (err) {
+      console.error('Create position error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async deletePosition(req, res) {
+    try {
+      const { id } = req.params;
+      const { error } = await supabase.from('positions').delete().eq('id', id);
+
+      if (error) throw error;
+
+      return res.json({ success: true, message: 'Position deleted' });
+    } catch (err) {
+      console.error('Delete position error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
 }
 
 module.exports = AdminController;

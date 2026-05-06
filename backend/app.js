@@ -17,8 +17,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Redirect root to login page
+app.get('/', (req, res) => {
+  res.redirect('/login.html');
+});
+
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
+
 // Existing routes
 app.use('/api', attendanceRoutes);
 
