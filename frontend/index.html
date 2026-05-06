@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance System</title>
+    <meta name="description" content="Attendance System validation tool for KANOPI.">
+    <link rel="stylesheet" href="assets/style.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    [K]
+                </div>
+                <div>
+                    <h1>Attendance System</h1>
+                    <p class="subtitle">KANOPI Attendance Validator</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+            <button class="tab-btn active" id="tabBtnNetwork">Network Check</button>
+            <button class="tab-btn" id="tabBtnLocation">Location Check</button>
+        </div>
+
+        <!-- TAB 1: NETWORK CHECK -->
+        <div class="tab-content active" id="tabNetwork">
+            <div class="result-banner" id="resultBanner">
+                <div class="result-icon" id="resultIcon">?</div>
+                <div class="result-text">
+                    <h2 id="resultTitle">System Status: Idle</h2>
+                    <p id="resultSubtitle">Click the button to begin diagnostics</p>
+                </div>
+                <button class="btn-check" id="btnCheck">
+                    Refresh
+                </button>
+            </div>
+
+            <div class="cards-grid">
+                <div class="card">
+                    <span class="card-label">IP Address</span>
+                    <p class="card-value" id="ipAddress">—</p>
+                    <p class="card-detail" id="ipVersion">Detecting…</p>
+                </div>
+                <div class="card">
+                    <span class="card-label">ISP / Organization</span>
+                    <p class="card-value" id="ispName">—</p>
+                    <p class="card-detail" id="orgName">Detecting…</p>
+                </div>
+                <div class="card">
+                    <span class="card-label">ASN</span>
+                    <p class="card-value" id="asnNumber">—</p>
+                    <p class="card-detail" id="asnName">Detecting…</p>
+                </div>
+                <div class="card">
+                    <span class="card-label">Location</span>
+                    <p class="card-value" id="location">—</p>
+                    <p class="card-detail" id="coordinates">Detecting…</p>
+                </div>
+                <div class="card">
+                    <span class="card-label">Timezone</span>
+                    <p class="card-value" id="timezone">—</p>
+                    <p class="card-detail" id="timezoneOffset">Detecting…</p>
+                </div>
+                <div class="card">
+                    <span class="card-label">Network Type</span>
+                    <p class="card-value" id="connType">—</p>
+                    <p class="card-detail" id="connProxy">Detecting…</p>
+                </div>
+            </div>
+
+            <div class="validation-section">
+                <h3 class="section-title">Validation Details</h3>
+                <div class="check-list">
+                    <div class="check-item" id="checkAsn">
+                        <span class="check-status" id="checkAsnStatus">[?]</span>
+                        <div>
+                            <span class="check-label">Network Validation</span>
+                            <span class="check-detail" id="checkAsnDetail">Pending check…</span>
+                        </div>
+                    </div>
+                    <div class="check-item" id="checkPrefix">
+                        <span class="check-status" id="checkPrefixStatus">[?]</span>
+                        <div>
+                            <span class="check-label">IP Range Validation</span>
+                            <span class="check-detail" id="checkPrefixDetail">Pending check…</span>
+                        </div>
+                    </div>
+                    <div class="check-item" id="checkCountry">
+                        <span class="check-status" id="checkCountryStatus">[?]</span>
+                        <div>
+                            <span class="check-label">Country Check (ID)</span>
+                            <span class="check-detail" id="checkCountryDetail">Pending check…</span>
+                        </div>
+                    </div>
+                    <div class="check-item" id="checkProxy">
+                        <span class="check-status" id="checkProxyStatus">[?]</span>
+                        <div>
+                            <span class="check-label">VPN/Proxy Filter</span>
+                            <span class="check-detail" id="checkProxyDetail">Pending check…</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="reference-section">
+                <h3 class="section-title">Network Reference</h3>
+                <div class="profile-grid">
+                    <div class="profile-item">
+                        <span class="profile-label">Organization</span>
+                        <span class="profile-value">KANOPI</span>
+                    </div>
+                    <div class="profile-item">
+                        <span class="profile-label">ASN Number</span>
+                        <span class="profile-value">TBD</span>
+                    </div>
+                    <div class="profile-item">
+                        <span class="profile-label">Main Domain</span>
+                        <span class="profile-value">kanopi.id</span>
+                    </div>
+                    <div class="profile-item">
+                        <span class="profile-label">Region</span>
+                        <span class="profile-value">Indonesia (ID)</span>
+                    </div>
+                </div>
+                <div class="prefix-grid">
+                    <div class="prefix-tag">TBD — WiFi ASN pending</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: LOCATION CHECK -->
+        <div class="tab-content" id="tabLocation">
+            <div class="geo-gate" id="geoGate">
+                <h2>GPS Access Required</h2>
+                <p>Please authorize location access to verify your location.</p>
+                <button class="btn-geo" id="btnGeo">Authorize GPS</button>
+            </div>
+
+            <div class="loc-results" id="locResults" style="display:none;">
+                <div class="result-banner" id="locBanner">
+                    <div class="result-icon" id="locBannerIcon">?</div>
+                    <div class="result-text">
+                        <h2 id="locBannerTitle">Acquiring Location...</h2>
+                        <p id="locBannerSubtitle">Waiting for satellite lock</p>
+                    </div>
+                    <button class="btn-check" id="btnRefreshLoc">Refresh GPS</button>
+                </div>
+
+                <div class="cards-grid">
+                    <div class="card">
+                        <span class="card-label">Coordinates</span>
+                        <p class="card-value" id="locCoords">—</p>
+                        <p class="card-detail" id="locCoordsDetail">Waiting…</p>
+                    </div>
+                    <div class="card">
+                        <span class="card-label">Current Location</span>
+                        <p class="card-value" id="locLocation">—</p>
+                        <p class="card-detail" id="locLocationDetail">Waiting…</p>
+                    </div>
+                    <div class="card">
+                        <span class="card-label">Distance from Hub</span>
+                        <p class="card-value" id="locDistance">—</p>
+                        <p class="card-detail" id="locDistanceDetail">Waiting…</p>
+                    </div>
+                    <div class="card">
+                        <span class="card-label">GPS Accuracy</span>
+                        <p class="card-value" id="locAccuracy">—</p>
+                        <p class="card-detail" id="locAccuracyDetail">Waiting…</p>
+                    </div>
+                </div>
+
+                <div class="map-section">
+                    <h3 class="section-title">Location Map View</h3>
+                    <div class="map-wrap" id="mapContainer"></div>
+                </div>
+
+                <div class="validation-section">
+                    <h3 class="section-title">Geofence Validation</h3>
+                    <div class="check-list">
+                        <div class="check-item" id="checkGeo">
+                            <span class="check-status" id="checkGeoStatus">[?]</span>
+                            <div>
+                                <span class="check-label">GPS Metadata Valid</span>
+                                <span class="check-detail" id="checkGeoDetail">Pending…</span>
+                            </div>
+                        </div>
+                        <div class="check-item" id="checkVenue">
+                            <span class="check-status" id="checkVenueStatus">[?]</span>
+                            <div>
+                                <span class="check-label">Inside KANOPI Boundary</span>
+                                <span class="check-detail" id="checkVenueDetail">Pending…</span>
+                            </div>
+                        </div>
+                        <div class="check-item" id="checkAccuracy">
+                            <span class="check-status" id="checkAccuracyStatus">[?]</span>
+                            <div>
+                                <span class="check-label">GPS Accuracy Check</span>
+                                <span class="check-detail" id="checkAccuracyDetail">Pending…</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>Attendance System v1.0.0 &copy; 2024</p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="models/NetworkResult.js"></script>
+    <script src="models/LocationResult.js"></script>
+    <script src="services/AttendanceApiService.js"></script>
+    <script src="views/NetworkView.js"></script>
+    <script src="views/LocationView.js"></script>
+    <script src="controllers/NetworkController.js"></script>
+    <script src="controllers/LocationController.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>

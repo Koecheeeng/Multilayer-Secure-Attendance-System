@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Manager — KANOPI</title>
+    <meta name="description" content="Store session manager for generating dynamic QR attendance codes.">
+    <link rel="stylesheet" href="assets/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header / Title Bar -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    [QR]
+                </div>
+                <div>
+                    <h1>Session Manager</h1>
+                    <p class="subtitle">KANOPI — QR Code Generator</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Session Control Panel -->
+        <div class="session-panel">
+            <div class="validation-section">
+                <h3 class="section-title">Session Control</h3>
+                <div class="session-controls">
+                    <div class="session-input-group">
+                        <label for="sessionIdInput" class="card-label">Session ID</label>
+                        <input type="text" id="sessionIdInput" class="session-input"
+                            placeholder="e.g. CS101-2024-W10" />
+                    </div>
+                    <div class="session-btn-group">
+                        <button class="btn-check btn-start" id="btnStartSession">
+                            ▶ Start Session
+                        </button>
+                        <button class="btn-check btn-stop" id="btnStopSession">
+                            ■ Stop Session
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- QR Display Section -->
+        <div class="validation-section">
+            <h3 class="section-title">QR Code Display</h3>
+
+            <div class="result-banner" id="qrBanner">
+                <div class="result-icon">?</div>
+                <div class="result-text">
+                    <h2>No Active Session</h2>
+                    <p>Enter a Session ID and click Start to begin</p>
+                </div>
+            </div>
+
+            <div class="qr-display-area">
+                <div class="qr-image-wrap">
+                    <img id="qrImage" src="" alt="QR Code will appear here" class="qr-image" />
+                </div>
+
+                <div class="cards-grid">
+                    <div class="card">
+                        <span class="card-label">Token (Truncated)</span>
+                        <p class="card-value" id="qrTokenDisplay">—</p>
+                    </div>
+                    <div class="card">
+                        <span class="card-label">Time Remaining</span>
+                        <p class="card-value" id="qrCountdown">—</p>
+                        <p class="card-detail">Auto-refreshes every 15 seconds</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>KANOPI v1.0.0 &copy; 2024 &mdash; <a href="index.html">Student View</a></p>
+        </footer>
+    </div>
+
+    <!-- Scripts (load order matters) -->
+    <script src="models/QrResult.js"></script>
+    <script src="services/AttendanceApiService.js"></script>
+    <script src="views/QrView.js"></script>
+    <script src="controllers/QrController.js"></script>
+    <script src="manager-app.js"></script>
+</body>
+
+</html>
