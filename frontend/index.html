@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance System</title>
-    <meta name="description" content="Attendance System validation tool for KANOPI.">
+    <meta name="description" content="Attendance System validation tool for Pustaka Dakwah.">
     <link rel="stylesheet" href="assets/style.css">
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -17,11 +17,11 @@
         <header class="header">
             <div class="logo">
                 <div class="logo-icon">
-                    [K]
+                    [P]
                 </div>
                 <div>
                     <h1>Attendance System</h1>
-                    <p class="subtitle">KANOPI Attendance Validator</p>
+                    <p class="subtitle">Pustaka Dakwah Attendance Validator</p>
                 </div>
             </div>
         </header>
@@ -117,23 +117,23 @@
                 <div class="profile-grid">
                     <div class="profile-item">
                         <span class="profile-label">Organization</span>
-                        <span class="profile-value">KANOPI</span>
+                        <span class="profile-value" id="refOrg">Pustaka Dakwah</span>
                     </div>
                     <div class="profile-item">
                         <span class="profile-label">ASN Number</span>
-                        <span class="profile-value">TBD</span>
+                        <span class="profile-value" id="refAsn">TBD</span>
                     </div>
                     <div class="profile-item">
-                        <span class="profile-label">Main Domain</span>
-                        <span class="profile-value">kanopi.id</span>
+                        <span class="profile-label">Allowed Prefix</span>
+                        <span class="profile-value">45.251.4.0/22</span>
                     </div>
                     <div class="profile-item">
-                        <span class="profile-label">Region</span>
-                        <span class="profile-value">Indonesia (ID)</span>
+                        <span class="profile-label">IP Range</span>
+                        <span class="profile-value">45.251.4.0 - 45.251.7.255</span>
                     </div>
                 </div>
                 <div class="prefix-grid">
-                    <div class="prefix-tag">TBD — WiFi ASN pending</div>
+                    <div class="prefix-tag" id="refPrefix">Target Subnet: 45.251.4.0/22 (255.255.252.0)</div>
                 </div>
             </div>
         </div>
@@ -197,7 +197,7 @@
                         <div class="check-item" id="checkVenue">
                             <span class="check-status" id="checkVenueStatus">[?]</span>
                             <div>
-                                <span class="check-label">Inside KANOPI Boundary</span>
+                                <span class="check-label">Inside Pustaka Dakwah Boundary</span>
                                 <span class="check-detail" id="checkVenueDetail">Pending…</span>
                             </div>
                         </div>

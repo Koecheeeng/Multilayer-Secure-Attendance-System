@@ -62,6 +62,11 @@ class NetworkView {
         document.getElementById('connType').textContent = result.connType;
         document.getElementById('connProxy').textContent = result.isProxy ? '⚠️ VPN / Proxy detected' : '✓ No VPN / Proxy detected';
 
+        // Update Reference Section
+        document.getElementById('refOrg').textContent = venueAsnInfo.name;
+        document.getElementById('refAsn').textContent = venueAsnInfo.asn;
+        document.getElementById('refPrefix').textContent = `Target Network: ${venueAsnInfo.asn} — Subnet 45.251.4.0/22`;
+
         if (result.asnMatch) {
             this._setCheck('checkAsn', 'pass', `Your ASN is ${result.asn} — matches ${venueAsnInfo.asn} (${venueAsnInfo.name})`);
         } else {
@@ -71,7 +76,7 @@ class NetworkView {
         if (result.prefixMatch) {
             this._setCheck('checkPrefix', 'pass', `IP ${result.ip} is within ${result.matchedPrefix}`);
         } else {
-            this._setCheck('checkPrefix', 'fail', `IP ${result.ip} does not fall within any known KANOPI prefix`);
+            this._setCheck('checkPrefix', 'fail', `IP ${result.ip} does not fall within any known Pustaka Dakwah prefix`);
         }
 
         if (result.countryMatch) {
@@ -88,17 +93,17 @@ class NetworkView {
 
         if (result.overallPass && !result.hasWarning) {
             this._setBanner('pass',
-                '✓ Connected via KANOPI Network',
-                `ASN ${venueAsnInfo.asn} confirmed • IP ${result.ip} within known KANOPI prefix range`
+                '✓ Connected via Pustaka Dakwah Network',
+                `ASN ${venueAsnInfo.asn} confirmed • IP ${result.ip} within known Pustaka Dakwah prefix range`
             );
         } else if (result.overallPass && result.hasWarning) {
             this._setBanner('warn',
-                'KANOPI Network Detected (with warnings)',
+                'Pustaka Dakwah Network Detected (with warnings)',
                 'ASN matches but a VPN/Proxy was detected'
             );
         } else {
             this._setBanner('fail',
-                '✗ Not on KANOPI Network',
+                '✗ Not on Pustaka Dakwah Network',
                 `Your network: ${result.asn} — ${result.isp || result.asnName}`
             );
         }

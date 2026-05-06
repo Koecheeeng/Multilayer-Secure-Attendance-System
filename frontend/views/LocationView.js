@@ -62,7 +62,7 @@ class LocationView {
         document.getElementById('locDistance').textContent = this._formatDistance(result.distance);
         document.getElementById('locDistanceDetail').textContent = result.withinGeofence
             ? `Within ${location.abbrev} (${location.radius}m radius)`
-            : `Outside KANOPI by ${this._formatDistance(result.distance - location.radius)}`;
+            : `Outside Pustaka Dakwah by ${this._formatDistance(result.distance - location.radius)}`;
 
         document.getElementById('locAccuracy').textContent = `±${Math.round(result.accuracy)} m`;
         document.getElementById('locAccuracyDetail').textContent = result.accuracy <= maxAccuracy ? 'Good GPS signal' : 'Low GPS accuracy — signal may be unreliable';
@@ -72,7 +72,7 @@ class LocationView {
         if (result.withinGeofence) {
             this._setCheck('checkVenue', 'pass', `Within ${location.abbrev} (${location.name}) — ${this._formatDistance(result.distance)} away`);
         } else {
-            this._setCheck('checkVenue', 'fail', `Not within KANOPI geofence — nearest: ${location.abbrev} at ${this._formatDistance(result.distance)}`);
+            this._setCheck('checkVenue', 'fail', `Not within Pustaka Dakwah geofence — nearest: ${location.abbrev} at ${this._formatDistance(result.distance)}`);
         }
 
         if (result.accuracy <= maxAccuracy) {
@@ -88,7 +88,7 @@ class LocationView {
             );
         } else {
             this._setBanner('fail',
-                '✗ Not within KANOPI',
+                '✗ Not within Pustaka Dakwah',
                 `Nearest location: ${location.abbrev} (${location.branch}) — ${this._formatDistance(result.distance)} away`
             );
         }

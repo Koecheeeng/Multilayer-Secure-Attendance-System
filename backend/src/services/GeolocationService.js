@@ -11,11 +11,11 @@ const MAX_ACCURACY_METERS = 100;
 
 const LOCATIONS = [
     {
-        name: 'KANOPI',
-        abbrev: 'KANOPI',
-        branch: 'Bandar Lampung',
-        lat: -5.3792377,
-        lng: 105.2365897,
+        name: 'Pustaka Dakwah Bintara',
+        abbrev: 'BINTARA',
+        branch: 'Bintara',
+        lat: -6.2242499,
+        lng: 106.9508641,
         radius: 100
     }
 ];
