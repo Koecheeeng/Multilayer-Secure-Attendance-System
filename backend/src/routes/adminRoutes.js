@@ -59,4 +59,16 @@ router.delete('/positions/:id', requireRole('admin'), (req, res) =>
   adminController.deletePosition(req, res)
 );
 
+// Attendance monitoring (admin/manager)
+const CheckInController = require('../controllers/CheckInController');
+const checkInController = new CheckInController();
+
+router.get('/attendance/today', requireRole('admin', 'manager'), (req, res) =>
+  checkInController.getToday(req, res)
+);
+
+router.get('/attendance/history', requireRole('admin', 'manager'), (req, res) =>
+  checkInController.getHistory(req, res)
+);
+
 module.exports = router;

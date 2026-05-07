@@ -30,6 +30,7 @@
         <div class="tab-bar">
             <button class="tab-btn active" id="tabBtnNetwork">Network Check</button>
             <button class="tab-btn" id="tabBtnLocation">Location Check</button>
+            <button class="tab-btn" id="tabBtnCheckin">Check In</button>
         </div>
 
         <!-- TAB 1: NETWORK CHECK -->
@@ -213,6 +214,94 @@
             </div>
         </div>
 
+        <!-- TAB 3: CHECK IN -->
+        <div class="tab-content" id="tabCheckin">
+            <div class="result-banner" id="checkinBanner">
+                <div class="result-icon" id="checkinBannerIcon">✓</div>
+                <div class="result-text">
+                    <h2 id="checkinBannerTitle">Staff Check-In</h2>
+                    <p id="checkinBannerSubtitle">Select your name, enter QR code, and check in</p>
+                </div>
+            </div>
+
+            <div class="validation-section" style="margin-bottom: 16px;">
+                <h3 class="section-title">Your Information</h3>
+                <div style="display: grid; gap: 12px; max-width: 500px;">
+                    <div>
+                        <label style="font-weight: 700; font-size: 13px; display: block; margin-bottom: 6px;">Staff Name</label>
+                        <select id="checkinStaffSelect" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.15); font-size: 15px; background: #fff;">
+                            <option value="">Loading staff list...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: 700; font-size: 13px; display: block; margin-bottom: 6px;">QR Token</label>
+                        <input id="checkinQrToken" type="text" placeholder="Enter or scan QR code token" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.15); font-size: 15px; font-family: monospace;" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Layer Status -->
+            <div class="validation-section" style="margin-bottom: 16px;">
+                <h3 class="section-title">Validation Layers</h3>
+                <div class="check-list">
+                    <div class="check-item" id="ciCheckQr">
+                        <span class="check-status" id="ciCheckQrStatus">[?]</span>
+                        <div>
+                            <span class="check-label">QR Code</span>
+                            <span class="check-detail" id="ciCheckQrDetail">Enter a valid QR token</span>
+                        </div>
+                    </div>
+                    <div class="check-item" id="ciCheckNetwork">
+                        <span class="check-status" id="ciCheckNetworkStatus">[?]</span>
+                        <div>
+                            <span class="check-label">Network / WiFi</span>
+                            <span class="check-detail" id="ciCheckNetworkDetail">Auto-detected on submission</span>
+                        </div>
+                    </div>
+                    <div class="check-item" id="ciCheckGps">
+                        <span class="check-status" id="ciCheckGpsStatus">[?]</span>
+                        <div>
+                            <span class="check-label">GPS / Location</span>
+                            <span class="check-detail" id="ciCheckGpsDetail">Auto-detected on submission</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; padding: 20px 0;">
+                <button id="btnSubmitCheckin" style="padding: 16px 48px; border-radius: 14px; border: 0; background: linear-gradient(90deg, #22c55e, #16a34a); color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; box-shadow: 0 12px 28px rgba(34,197,94,0.3); transition: transform .14s ease, box-shadow .14s ease; letter-spacing: -0.02em;">
+                    ✓ Check In Now
+                </button>
+                <div id="checkinMessage" style="margin-top: 12px; font-weight: 700; font-size: 14px;"></div>
+            </div>
+
+            <!-- Check-in Result -->
+            <div id="checkinResultArea" style="display: none;">
+                <div class="cards-grid">
+                    <div class="card">
+                        <span class="card-label">Network</span>
+                        <p class="card-value" id="ciResNetwork">—</p>
+                        <p class="card-detail" id="ciResNetworkDetail"></p>
+                    </div>
+                    <div class="card">
+                        <span class="card-label">GPS</span>
+                        <p class="card-value" id="ciResGps">—</p>
+                        <p class="card-detail" id="ciResGpsDetail"></p>
+                    </div>
+                    <div class="card">
+                        <span class="card-label">QR Code</span>
+                        <p class="card-value" id="ciResQr">—</p>
+                        <p class="card-detail" id="ciResQrDetail"></p>
+                    </div>
+                    <div class="card">
+                        <span class="card-label">Overall</span>
+                        <p class="card-value" id="ciResOverall">—</p>
+                        <p class="card-detail" id="ciResOverallDetail"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <footer class="footer">
             <p>Attendance System v1.0.0 &copy; 2024</p>
         </footer>
@@ -228,6 +317,136 @@
     <script src="controllers/NetworkController.js"></script>
     <script src="controllers/LocationController.js"></script>
     <script src="app.js"></script>
+    <script>
+        // ===== Check-In Tab Logic =====
+        (function() {
+            const tabBtnCheckin = document.getElementById('tabBtnCheckin');
+            const tabCheckin = document.getElementById('tabCheckin');
+
+            // Tab switching for the new Check In tab
+            tabBtnCheckin.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tabBtnCheckin.classList.add('active');
+                tabCheckin.classList.add('active');
+                loadStaffListForCheckin();
+            });
+
+            // Load staff list
+            async function loadStaffListForCheckin() {
+                try {
+                    const res = await fetch('/api/staff/active');
+                    const data = await res.json();
+                    const select = document.getElementById('checkinStaffSelect');
+                    if (data.success && data.data.length > 0) {
+                        select.innerHTML = '<option value="">-- Select your name --</option>' +
+                            data.data.map(s => `<option value="${s.id}">${s.staff_code} — ${s.full_name} (${s.department || 'N/A'})</option>`).join('');
+                    } else {
+                        select.innerHTML = '<option value="">No active staff found</option>';
+                    }
+                } catch (err) {
+                    console.error('Load staff error:', err);
+                }
+            }
+
+            // Check in submit
+            document.getElementById('btnSubmitCheckin').addEventListener('click', async () => {
+                const staffId = document.getElementById('checkinStaffSelect').value;
+                const qrToken = document.getElementById('checkinQrToken').value.trim();
+                const msgEl = document.getElementById('checkinMessage');
+
+                if (!staffId) { msgEl.textContent = '⚠ Please select your name'; msgEl.style.color = '#b42318'; return; }
+                if (!qrToken) { msgEl.textContent = '⚠ Please enter QR token'; msgEl.style.color = '#b42318'; return; }
+
+                msgEl.textContent = '⏳ Checking in... acquiring GPS...';
+                msgEl.style.color = '#6366f1';
+
+                // Get GPS
+                let gps = { lat: 0, lon: 0, accuracy: 9999 };
+                try {
+                    const pos = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: true, timeout: 10000, maximumAge: 0
+                        });
+                    });
+                    gps = { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy };
+                } catch (gpsErr) {
+                    console.warn('GPS failed:', gpsErr);
+                    // Still try to check in with bad GPS coords
+                }
+
+                msgEl.textContent = '⏳ Validating layers...';
+
+                try {
+                    const res = await fetch('/api/attendance/checkin', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ staff_id: staffId, qr_token: qrToken, gps })
+                    });
+                    const data = await res.json();
+
+                    if (!data.success) throw new Error(data.error);
+
+                    // Update layer checks
+                    setCheckItem('ciCheckQr', data.layers.qr.pass, data.layers.qr.reason);
+                    setCheckItem('ciCheckNetwork', data.layers.network.pass, data.layers.network.pass ? `IP ${data.layers.network.ip} — ASN ${data.layers.network.asn}` : `Network mismatch: ${data.layers.network.isp}`);
+                    setCheckItem('ciCheckGps', data.layers.gps.pass, data.layers.gps.pass ? `Within ${data.layers.gps.nearest} (${Math.round(data.layers.gps.distance)}m)` : `Too far: ${Math.round(data.layers.gps.distance)}m away`);
+
+                    // Update banner
+                    const banner = document.getElementById('checkinBanner');
+                    const bannerIcon = document.getElementById('checkinBannerIcon');
+                    const bannerTitle = document.getElementById('checkinBannerTitle');
+                    const bannerSubtitle = document.getElementById('checkinBannerSubtitle');
+
+                    if (data.overall_pass) {
+                        banner.className = 'result-banner pass';
+                        bannerIcon.textContent = '✓';
+                        bannerTitle.textContent = '✓ Check-In Successful!';
+                        bannerSubtitle.textContent = `${data.staff.name} — checked in at ${new Date(data.checked_at).toLocaleTimeString('id-ID')}`;
+                        msgEl.textContent = '✓ Check-in recorded successfully!';
+                        msgEl.style.color = '#067647';
+                    } else {
+                        banner.className = 'result-banner fail';
+                        bannerIcon.textContent = '✗';
+                        bannerTitle.textContent = '✗ Check-In Failed';
+                        bannerSubtitle.textContent = 'One or more validation layers did not pass';
+                        msgEl.textContent = '✗ Check-in failed — see validation details above';
+                        msgEl.style.color = '#b42318';
+                    }
+
+                    // Show result cards
+                    document.getElementById('checkinResultArea').style.display = 'block';
+                    document.getElementById('ciResNetwork').textContent = data.layers.network.pass ? 'PASS' : 'FAIL';
+                    document.getElementById('ciResNetworkDetail').textContent = data.layers.network.ip || '';
+                    document.getElementById('ciResGps').textContent = data.layers.gps.pass ? 'PASS' : 'FAIL';
+                    document.getElementById('ciResGpsDetail').textContent = `${Math.round(data.layers.gps.distance || 0)}m away`;
+                    document.getElementById('ciResQr').textContent = data.layers.qr.pass ? 'PASS' : 'FAIL';
+                    document.getElementById('ciResQrDetail').textContent = data.layers.qr.reason;
+                    document.getElementById('ciResOverall').textContent = data.overall_pass ? 'PASS' : 'FAIL';
+                    document.getElementById('ciResOverallDetail').textContent = data.db_saved ? 'Record saved' : 'Not saved (table not ready)';
+
+                    // Clear QR token input
+                    document.getElementById('checkinQrToken').value = '';
+
+                } catch (err) {
+                    msgEl.textContent = '✗ Error: ' + err.message;
+                    msgEl.style.color = '#b42318';
+                }
+            });
+
+            function setCheckItem(id, pass, detail) {
+                const item = document.getElementById(id);
+                const status = document.getElementById(id + 'Status');
+                const detailEl = document.getElementById(id + 'Detail');
+                if (item) item.className = 'check-item ' + (pass ? 'pass' : 'fail');
+                if (status) status.textContent = pass ? '[ OK ]' : '[ !! ]';
+                if (detailEl) detailEl.textContent = detail;
+            }
+
+            // Pre-load staff list
+            loadStaffListForCheckin();
+        })();
+    </script>
 </body>
 
 </html>

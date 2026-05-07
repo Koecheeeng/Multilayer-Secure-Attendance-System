@@ -398,6 +398,123 @@
       await loadMe();
       await loadStaff();
       await loadRolesData();
+      if (state.activeSection === 'attendance') {
+        await loadAttendanceToday();
+        await loadAttendanceHistory();
+      }
+    }
+
+    // ===== Attendance Tab Logic =====
+
+    let qrInterval = null;
+    let qrSessionActive = false;
+
+    async function loadAttendanceToday() {
+      try {
+        const result = await api('/attendance/today');
+        const d = result.data;
+        const el_total = qs('attTotalCheckins');
+        const el_unique = qs('attUniqueStaff');
+        const el_rate = qs('attPassRate');
+        const el_latest = qs('attLatestTime');
+        if (el_total) el_total.textContent = d.total;
+        if (el_unique) el_unique.textContent = d.unique_staff;
+        if (el_rate) el_rate.textContent = d.pass_rate + '%';
+        if (el_latest) el_latest.textContent = d.latest
+          ? new Date(d.latest.checked_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+          : '—';
+      } catch (err) {
+        console.error('Load attendance today error:', err);
+      }
+    }
+
+    async function loadAttendanceHistory() {
+      try {
+        const result = await api('/attendance/history');
+        const records = result.data || [];
+        const tbody = qs('attHistoryBody');
+        if (!tbody) return;
+
+        if (records.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="muted">No attendance records yet.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = records.map(r => {
+          const time = new Date(r.checked_at).toLocaleString('id-ID', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+          });
+          const badge = (pass) => pass
+            ? '<span class="badge badge-green">PASS</span>'
+            : '<span class="badge badge-gray">FAIL</span>';
+          return `<tr>
+            <td>${escapeHtml(time)}</td>
+            <td>${escapeHtml(r.staff_code || '—')}</td>
+            <td>${escapeHtml(r.staff_name || '—')}</td>
+            <td>${badge(r.network_pass)}</td>
+            <td>${badge(r.gps_pass)}</td>
+            <td>${badge(r.qr_pass)}</td>
+            <td>${badge(r.overall_pass)}</td>
+          </tr>`;
+        }).join('');
+      } catch (err) {
+        console.error('Load attendance history error:', err);
+        const tbody = qs('attHistoryBody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="muted">Failed to load history.</td></tr>';
+      }
+    }
+
+    async function startQrSession() {
+      const sessionInput = qs('attSessionId');
+      const sessionId = (sessionInput?.value || '').trim() || 'SESSION-' + Date.now().toString(36).toUpperCase();
+      sessionInput.value = sessionId;
+
+      qrSessionActive = true;
+      qs('btnStartQr').disabled = true;
+      qs('btnStopQr').disabled = false;
+      setMessage(qs('attQrMessage'), 'QR session active: ' + sessionId);
+
+      await refreshQrCode(sessionId);
+      qrInterval = setInterval(() => refreshQrCode(sessionId), 15000);
+    }
+
+    function stopQrSession() {
+      qrSessionActive = false;
+      if (qrInterval) { clearInterval(qrInterval); qrInterval = null; }
+      qs('btnStartQr').disabled = false;
+      qs('btnStopQr').disabled = true;
+      const img = qs('attQrImage');
+      if (img) img.src = '';
+      qs('attQrToken').textContent = '—';
+      qs('attQrCountdown').textContent = '—';
+      setMessage(qs('attQrMessage'), 'QR session stopped.');
+    }
+
+    async function refreshQrCode(sessionId) {
+      if (!qrSessionActive) return;
+      try {
+        const res = await fetch(`/api/qr/generate?sessionId=${encodeURIComponent(sessionId)}`);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+
+        const img = qs('attQrImage');
+        if (img) img.src = data.qrDataUrl;
+        qs('attQrToken').textContent = data.token.substring(0, 12) + '…';
+
+        // Countdown timer
+        const lifetime = data.lifetimeMs / 1000;
+        let remaining = lifetime;
+        const countdownEl = qs('attQrCountdown');
+        const countdownInterval = setInterval(() => {
+          remaining--;
+          if (countdownEl) countdownEl.textContent = remaining + 's';
+          if (remaining <= 0) clearInterval(countdownInterval);
+        }, 1000);
+        if (countdownEl) countdownEl.textContent = lifetime + 's';
+      } catch (err) {
+        console.error('QR refresh error:', err);
+      }
     }
 
 
@@ -550,6 +667,20 @@
         bind('deptList', 'click', handleDeptActions);
         bind('posList', 'click', handlePosActions);
         bind('staffDepartment', 'change', updatePositionDropdown);
+
+        // Attendance tab event listeners
+        bind('btnStartQr', 'click', startQrSession);
+        bind('btnStopQr', 'click', stopQrSession);
+
+        // Load attendance data when switching to attendance tab
+        document.querySelectorAll('[data-nav]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (btn.dataset.nav === 'attendance') {
+              await loadAttendanceToday();
+              await loadAttendanceHistory();
+            }
+          });
+        });
 
         // Simple local settings
         const settingsEl = qs('settingsVenueName');
@@ -1898,6 +2029,14 @@
             </svg>
             <span class="nav-label">Verification</span>
           </button>
+          <button class="nav-btn" data-nav="attendance">
+            <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+            <span class="nav-label">Attendance</span>
+          </button>
           <button class="nav-btn" data-nav="people">
             <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -2168,6 +2307,108 @@
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== ATTENDANCE PANEL ===== -->
+        <section class="panel" data-section="attendance">
+          <div class="hero">
+            <div>
+              <h1>Attendance</h1>
+              <p>Manage QR sessions, monitor live check-ins, and view attendance history.</p>
+            </div>
+          </div>
+
+          <!-- QR Session Manager -->
+          <div class="card">
+            <div class="card-title-row">
+              <h2>QR Session Manager</h2>
+              <span>Generate QR codes for staff check-in</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start;">
+              <div>
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                  <div class="field">
+                    <label for="attSessionId">Session ID</label>
+                    <input id="attSessionId" class="input" type="text" placeholder="e.g. MORNING-SHIFT" />
+                  </div>
+                  <div class="field">
+                    <label>Actions</label>
+                    <div class="inline-actions">
+                      <button id="btnStartQr" class="primary-btn" type="button">▶ Start Session</button>
+                      <button id="btnStopQr" class="ghost-btn" type="button" disabled>■ Stop</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; margin-top: 12px;">
+                  <div class="field">
+                    <label>Current Token</label>
+                    <div id="attQrToken" style="font-family: monospace; font-size: 14px; color: var(--muted);">—</div>
+                  </div>
+                  <div class="field">
+                    <label>Time Remaining</label>
+                    <div id="attQrCountdown" style="font-size: 24px; font-weight: 800; letter-spacing: -0.04em;">—</div>
+                  </div>
+                </div>
+                <div id="attQrMessage" class="message" style="display:none;"></div>
+              </div>
+              <div style="text-align: center;">
+                <div style="width: 240px; height: 240px; border-radius: 18px; border: 1px solid rgba(0,0,0,0.08); background: #fff; display: grid; place-items: center; margin: 0 auto;">
+                  <img id="attQrImage" src="" alt="QR Code" style="max-width: 220px; max-height: 220px; display: block;" />
+                </div>
+                <p class="muted" style="margin-top: 8px; font-size: 12px;">Auto-refreshes every 15 seconds</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Today's Summary -->
+          <div class="grid-4">
+            <article class="stat-card">
+              <div class="label">Total check-ins</div>
+              <div id="attTotalCheckins" class="value">0</div>
+              <div class="hint">Today</div>
+            </article>
+            <article class="stat-card">
+              <div class="label">Unique staff</div>
+              <div id="attUniqueStaff" class="value">0</div>
+              <div class="hint">Distinct employees</div>
+            </article>
+            <article class="stat-card">
+              <div class="label">Pass rate</div>
+              <div id="attPassRate" class="value">0%</div>
+              <div class="hint">All 3 layers passed</div>
+            </article>
+            <article class="stat-card">
+              <div class="label">Latest check-in</div>
+              <div id="attLatestTime" class="value">—</div>
+              <div class="hint">Most recent today</div>
+            </article>
+          </div>
+
+          <!-- Attendance History -->
+          <div class="card">
+            <div class="card-title-row">
+              <h2>Attendance History</h2>
+              <span>Today's records</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Network</th>
+                    <th>GPS</th>
+                    <th>QR</th>
+                    <th>Overall</th>
+                  </tr>
+                </thead>
+                <tbody id="attHistoryBody">
+                  <tr><td colspan="8" class="muted">No records yet. Start a QR session to begin.</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </section>

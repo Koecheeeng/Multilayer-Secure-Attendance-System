@@ -8,8 +8,8 @@ const QrTokenService = require('../services/QrTokenService');
 const QRCode = require('qrcode');
 
 class QrController {
-    constructor() {
-        this.qrTokenService = new QrTokenService();
+    constructor(qrTokenService) {
+        this.qrTokenService = qrTokenService || new QrTokenService();
     }
 
     /**
