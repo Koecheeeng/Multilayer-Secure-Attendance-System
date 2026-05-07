@@ -500,7 +500,9 @@
 
         const img = qs('attQrImage');
         if (img) img.src = data.qrDataUrl;
-        qs('attQrToken').textContent = data.token.substring(0, 12) + '…';
+        qs('attQrToken').textContent = data.token;
+        const fullTokenEl = qs('attQrFullToken');
+        if (fullTokenEl) fullTokenEl.value = data.token;
 
         // Countdown timer
         const lifetime = data.lifetimeMs / 1000;
@@ -2352,6 +2354,13 @@
                   </div>
                 </div>
                 <div id="attQrMessage" class="message" style="display:none;"></div>
+                <div class="field" style="margin-top: 12px;">
+                  <label>Full Token (for manual input)</label>
+                  <div style="display: flex; gap: 8px;">
+                    <input id="attQrFullToken" class="input" type="text" readonly style="flex:1; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px;" value="" placeholder="Start a session to generate token" />
+                    <button id="btnCopyToken" class="ghost-btn" type="button" onclick="navigator.clipboard.writeText(document.getElementById('attQrFullToken').value).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)})">Copy</button>
+                  </div>
+                </div>
               </div>
               <div style="text-align: center;">
                 <div style="width: 240px; height: 240px; border-radius: 18px; border: 1px solid rgba(0,0,0,0.08); background: #fff; display: grid; place-items: center; margin: 0 auto;">

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pustaka Dakwah — Staff Check-In</title>
+    <meta name="description" content="Staff attendance check-in for Pustaka Dakwah.">
+    <style>
+        :root {
+            --bg: #f4f4f4;
+            --surface: #ffffff;
+            --surface-2: #f8f8fb;
+            --text: #111111;
+            --muted: #667085;
+            --border: rgba(17,17,17,0.14);
+            --shadow: 0 16px 45px rgba(17,17,17,0.08);
+            --shadow-soft: 0 10px 24px rgba(17,17,17,0.06);
+            --primary: #5b4bff;
+            --primary-2: #a855f7;
+            --primary-soft: rgba(91,75,255,0.14);
+            --danger: #b42318;
+            --success: #067647;
+            --radius-xl: 28px;
+            --radius-lg: 20px;
+            --radius-md: 16px;
+            --radius-sm: 12px;
+            font-synthesis-weight: none;
+            text-rendering: geometricPrecision;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: linear-gradient(180deg, #f8f8f8 0%, #ececec 100%);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        button, input, select { font: inherit; }
+        button { cursor: pointer; }
+
+        /* Header */
+        .topbar {
+            height: 84px; display: flex; align-items: center; justify-content: space-between;
+            gap: 16px; padding: 16px 24px 14px; border-bottom: 1px solid rgba(0,0,0,0.08);
+            background: rgba(255,255,255,0.96); backdrop-filter: blur(8px);
+            position: sticky; top: 0; z-index: 20;
+        }
+        .brand { display: flex; align-items: center; gap: 14px; }
+        .brand-mark {
+            width: 56px; height: 56px; border-radius: 16px;
+            background: linear-gradient(135deg, #6547ff, #8b5cf6);
+            box-shadow: 0 12px 26px rgba(91,75,255,0.28);
+            display: grid; place-items: center;
+        }
+        .brand-mark svg { color: #fff; }
+        .brand-copy { display: grid; line-height: 1.05; }
+        .brand-copy strong { font-size: 24px; letter-spacing: -0.03em; }
+        .brand-copy span { font-size: 14px; color: var(--muted); }
+
+        /* Main */
+        .main-wrap {
+            max-width: 680px; margin: 0 auto; padding: 24px 18px;
+        }
+
+        /* Steps indicator */
+        .step-bar { display: flex; gap: 6px; margin-bottom: 24px; }
+        .step-pip {
+            flex: 1; height: 5px; border-radius: 5px;
+            background: rgba(0,0,0,0.08); transition: background .3s;
+        }
+        .step-pip.active { background: linear-gradient(90deg, #5b4bff, #a855f7); }
+        .step-pip.done { background: var(--success); }
+
+        .step-panel { display: none; animation: fadeIn .2s ease; }
+        .step-panel.active { display: block; }
+        @keyframes fadeIn { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform: translateY(0); } }
+
+        /* Cards */
+        .card {
+            background: rgba(255,255,255,0.96); border-radius: var(--radius-xl);
+            box-shadow: var(--shadow); border: 1px solid rgba(255,255,255,0.72);
+            padding: 24px; margin-bottom: 16px;
+        }
+        .card-title { font-size: 30px; font-weight: 800; letter-spacing: -0.05em; margin: 0 0 6px; }
+        .card-subtitle { color: var(--muted); font-size: 15px; margin-bottom: 20px; }
+
+        .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        .stat-card {
+            background: rgba(255,255,255,0.96); border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft); border: 1px solid rgba(0,0,0,0.06);
+            padding: 16px;
+        }
+        .stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--primary); }
+        .stat-value { font-size: 20px; font-weight: 800; margin: 6px 0 2px; letter-spacing: -0.03em; }
+        .stat-detail { font-size: 12px; color: var(--muted); }
+
+        /* Check items */
+        .check-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+        .check-item {
+            display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+            border-radius: 14px; border: 1px solid rgba(0,0,0,0.06);
+            background: rgba(0,0,0,0.02); transition: all .2s;
+        }
+        .check-item.pass { background: rgba(6,118,71,0.06); border-color: rgba(6,118,71,0.15); }
+        .check-item.fail { background: rgba(180,35,24,0.06); border-color: rgba(180,35,24,0.15); }
+        .check-item.loading { background: rgba(91,75,255,0.06); border-color: rgba(91,75,255,0.12); }
+        .check-icon {
+            width: 40px; height: 40px; border-radius: 12px;
+            display: grid; place-items: center; font-weight: 800; font-size: 15px;
+            background: rgba(0,0,0,0.04); flex-shrink: 0;
+        }
+        .check-item.pass .check-icon { background: rgba(6,118,71,0.12); color: var(--success); }
+        .check-item.fail .check-icon { background: rgba(180,35,24,0.12); color: var(--danger); }
+        .check-item.loading .check-icon { background: var(--primary-soft); color: var(--primary); }
+        .check-title { font-weight: 700; font-size: 14px; }
+        .check-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+        /* Form fields */
+        .field { margin-bottom: 16px; }
+        .field label { display: block; font-size: 13px; font-weight: 600; color: #1f2937; margin-bottom: 8px; }
+        .input, .select-input {
+            width: 100%; min-height: 50px; border-radius: 14px;
+            border: 1px solid rgba(0,0,0,0.16); padding: 14px;
+            background: #fff; outline: none; font-size: 15px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 2px rgba(0,0,0,0.03);
+            transition: border-color .14s, box-shadow .14s;
+        }
+        .input:focus, .select-input:focus { border-color: rgba(91,75,255,0.55); box-shadow: 0 0 0 4px rgba(91,75,255,0.10); }
+        .input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+        /* Buttons */
+        .btn-primary {
+            width: 100%; padding: 16px; border: 0; border-radius: 16px;
+            background: linear-gradient(90deg, #141d33, #0f172a);
+            color: #fff; font-size: 16px; font-weight: 700;
+            box-shadow: 0 12px 26px rgba(15,23,42,0.16);
+            transition: transform .14s, box-shadow .14s;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 32px rgba(15,23,42,0.22); }
+        .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+        .btn-success {
+            width: 100%; padding: 18px; border: 0; border-radius: 16px;
+            background: linear-gradient(90deg, #067647, #10b981);
+            color: #fff; font-size: 18px; font-weight: 800;
+            box-shadow: 0 12px 26px rgba(6,118,71,0.2);
+            transition: transform .14s, box-shadow .14s;
+        }
+        .btn-success:hover { transform: translateY(-2px); box-shadow: 0 16px 32px rgba(6,118,71,0.28); }
+        .btn-success:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+        .btn-ghost {
+            padding: 12px 20px; border: 0; border-radius: 14px;
+            background: #fff; color: #111;
+            box-shadow: inset 0 0 0 1px var(--border);
+            font-weight: 700; font-size: 13px; transition: transform .14s;
+        }
+        .btn-ghost:hover { transform: translateY(-1px); }
+
+        .msg { text-align: center; font-weight: 700; font-size: 14px; margin-top: 14px; min-height: 20px; }
+
+        /* Result banner */
+        .result-banner {
+            border-radius: var(--radius-xl); padding: 28px; text-align: center;
+            margin-bottom: 16px; background: var(--surface);
+            box-shadow: var(--shadow); border: 1px solid rgba(255,255,255,0.72);
+        }
+        .result-banner.pass { border-left: 6px solid var(--success); }
+        .result-banner.fail { border-left: 6px solid var(--danger); }
+        .r-icon { font-size: 48px; margin-bottom: 12px; }
+        .r-title { font-size: 24px; font-weight: 900; letter-spacing: -0.05em; }
+        .r-sub { color: var(--muted); font-size: 14px; margin-top: 6px; }
+
+        .footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px; }
+
+        @media (max-width: 520px) {
+            .stat-row { grid-template-columns: 1fr; }
+            .topbar { height: auto; flex-direction: column; align-items: flex-start; }
+            .card-title { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <div class="brand-mark">
+                <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none"
+                    stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                    <line x1="8" y1="14" x2="8" y2="14.01" /><line x1="12" y1="14" x2="12" y2="14.01" />
+                    <line x1="16" y1="14" x2="16" y2="14.01" /><line x1="8" y1="18" x2="8" y2="18.01" />
+                </svg>
+            </div>
+            <div class="brand-copy">
+                <strong>Pustaka Dakwah</strong>
+                <span>Staff Check-In</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-wrap">
+        <div class="step-bar">
+            <div class="step-pip active" id="dot1"></div>
+            <div class="step-pip" id="dot2"></div>
+            <div class="step-pip" id="dot3"></div>
+            <div class="step-pip" id="dot4"></div>
+        </div>
+
+        <!-- STEP 1: Select Staff -->
+        <div class="step-panel active" id="step1">
+            <div class="card">
+                <h2 class="card-title">Welcome</h2>
+                <p class="card-subtitle">Select your name to begin attendance check-in.</p>
+                <div class="field">
+                    <label>Your Name</label>
+                    <select id="userStaffSelect" class="select-input"><option value="">Loading...</option></select>
+                </div>
+                <div class="field">
+                    <label style="color: var(--muted); font-size: 12px;">Admin Override (optional)</label>
+                    <input type="password" id="userBypassKey" class="input" placeholder="Leave empty for normal check-in" style="font-size: 13px;" />
+                </div>
+                <button class="btn-primary" id="btnStep1Next">Continue →</button>
+                <div class="msg" id="step1Msg"></div>
+            </div>
+        </div>
+
+        <!-- STEP 2: Verification -->
+        <div class="step-panel" id="step2">
+            <div class="card">
+                <h2 class="card-title">Verification</h2>
+                <p class="card-subtitle">Checking your network connection and GPS location...</p>
+                <div class="check-list">
+                    <div class="check-item loading" id="uiCheckNetwork">
+                        <div class="check-icon">⏳</div>
+                        <div><div class="check-title">Network / WiFi</div>
+                        <div class="check-detail" id="uiCheckNetworkDetail">Checking connection...</div></div>
+                    </div>
+                    <div class="check-item loading" id="uiCheckGps">
+                        <div class="check-icon">⏳</div>
+                        <div><div class="check-title">GPS / Location</div>
+                        <div class="check-detail" id="uiCheckGpsDetail">Acquiring position...</div></div>
+                    </div>
+                </div>
+                <div class="stat-row" id="uiVerifyCards" style="display:none;">
+                    <div class="stat-card">
+                        <span class="stat-label">IP Address</span>
+                        <p class="stat-value" id="uiIp">—</p>
+                        <p class="stat-detail" id="uiIsp"></p>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Distance</span>
+                        <p class="stat-value" id="uiDistance">—</p>
+                        <p class="stat-detail" id="uiAccuracy"></p>
+                    </div>
+                </div>
+                <button class="btn-primary" id="btnStep2Next" disabled>Continue to QR Code →</button>
+                <div style="text-align:center; margin-top:10px;">
+                    <button class="btn-ghost" id="btnStep2Back">← Back</button>
+                </div>
+                <div class="msg" id="step2Msg"></div>
+            </div>
+        </div>
+
+        <!-- STEP 3: QR Code -->
+        <div class="step-panel" id="step3">
+            <div class="card">
+                <h2 class="card-title">Attendance Code</h2>
+                <p class="card-subtitle">Enter the code shown on the attendance display screen.</p>
+                <div class="field">
+                    <label>Attendance Code</label>
+                    <input type="text" id="userQrInput" class="input mono" placeholder="Paste or type the code here" autocomplete="off" />
+                </div>
+                <button class="btn-success" id="btnSubmitCheckin">✓ Check In Now</button>
+                <div style="text-align:center; margin-top:10px;">
+                    <button class="btn-ghost" id="btnStep3Back">← Back</button>
+                </div>
+                <div class="msg" id="step3Msg"></div>
+            </div>
+        </div>
+
+        <!-- STEP 4: Result -->
+        <div class="step-panel" id="step4">
+            <div class="result-banner" id="uiResultBanner">
+                <div class="r-icon" id="uiResultIcon"></div>
+                <div class="r-title" id="uiResultTitle"></div>
+                <div class="r-sub" id="uiResultSub"></div>
+            </div>
+            <div class="card">
+                <div id="uiResultChecks"></div>
+            </div>
+            <button class="btn-primary" id="btnNewCheckin">← New Check-In</button>
+        </div>
+    </main>
+
+    <footer class="footer">Pustaka Dakwah Attendance System v1.0</footer>
+
+    <script>
+        const state = { staffId: null, staffName: null, network: null, gps: null, bypassKey: null };
+        function goStep(n) {
+            document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('step' + n).classList.add('active');
+            for (let i = 1; i <= 4; i++) {
+                const d = document.getElementById('dot' + i);
+                d.className = 'step-pip' + (i < n ? ' done' : i === n ? ' active' : '');
+            }
+        }
+        async function loadStaff() {
+            try {
+                const res = await fetch('/api/staff/active');
+                const data = await res.json();
+                const sel = document.getElementById('userStaffSelect');
+                if (data.success && data.data.length) {
+                    sel.innerHTML = '<option value="">-- Select your name --</option>' +
+                        data.data.map(s => `<option value="${s.id}" data-name="${s.full_name}">${s.staff_code} — ${s.full_name}</option>`).join('');
+                } else { sel.innerHTML = '<option value="">No active staff</option>'; }
+            } catch (e) { console.error(e); }
+        }
+        document.getElementById('btnStep1Next').addEventListener('click', () => {
+            const sel = document.getElementById('userStaffSelect');
+            if (!sel.value) { document.getElementById('step1Msg').textContent = '⚠ Please select your name'; return; }
+            state.staffId = sel.value;
+            state.staffName = sel.options[sel.selectedIndex].dataset.name;
+            state.bypassKey = document.getElementById('userBypassKey').value.trim() || null;
+            document.getElementById('step1Msg').textContent = '';
+            if (state.bypassKey) {
+                // Bypass mode — skip verification, skip QR, go straight to submit
+                setCheckUI('uiCheckNetwork', 'pass', '✓', 'Superadmin bypass');
+                setCheckUI('uiCheckGps', 'pass', '✓', 'Superadmin bypass');
+                document.getElementById('uiVerifyCards').style.display = 'none';
+                goStep(2);
+                document.getElementById('btnStep2Next').disabled = false;
+                document.getElementById('step2Msg').textContent = '🔓 Admin override active — all checks bypassed';
+                document.getElementById('step2Msg').style.color = '#5b4bff';
+                return;
+            }
+            goStep(2); runVerification();
+        });
+        async function runVerification() {
+            const btn = document.getElementById('btnStep2Next'); btn.disabled = true;
+            setCheckUI('uiCheckNetwork', 'loading', '⏳', 'Checking network...');
+            try {
+                const res = await fetch('/api/network/check'); const data = await res.json();
+                state.network = data.data; const pass = data.data.overallPass;
+                setCheckUI('uiCheckNetwork', pass ? 'pass' : 'fail', pass ? '✓' : '✗',
+                    pass ? `${data.data.asn} — ${data.data.isp}` : `Not on Pustaka Dakwah network (${data.data.isp})`);
+                document.getElementById('uiIp').textContent = data.data.ip;
+                document.getElementById('uiIsp').textContent = data.data.isp || '';
+            } catch (e) { setCheckUI('uiCheckNetwork', 'fail', '✗', 'Network check failed'); state.network = { overallPass: false }; }
+            setCheckUI('uiCheckGps', 'loading', '⏳', 'Acquiring GPS...');
+            try {
+                const pos = await new Promise((ok, no) => navigator.geolocation.getCurrentPosition(ok, no, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }));
+                const gps = { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy };
+                const res = await fetch('/api/location/validate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(gps) });
+                const data = await res.json(); state.gps = { ...gps, result: data.data };
+                const pass = data.data.withinGeofence;
+                const dist = data.data.distance < 1000 ? Math.round(data.data.distance) + 'm' : (data.data.distance / 1000).toFixed(1) + 'km';
+                setCheckUI('uiCheckGps', pass ? 'pass' : 'fail', pass ? '✓' : '✗',
+                    pass ? `Within range (${dist} away, ±${Math.round(gps.accuracy)}m)` : `Too far: ${dist} away`);
+                document.getElementById('uiDistance').textContent = dist;
+                document.getElementById('uiAccuracy').textContent = `±${Math.round(gps.accuracy)}m accuracy`;
+            } catch (e) { setCheckUI('uiCheckGps', 'fail', '✗', 'GPS access denied or failed'); state.gps = { lat: 0, lon: 0, accuracy: 9999 }; }
+            document.getElementById('uiVerifyCards').style.display = 'grid'; btn.disabled = false;
+        }
+        function setCheckUI(id, status, icon, detail) {
+            const el = document.getElementById(id); el.className = 'check-item ' + status;
+            el.querySelector('.check-icon').textContent = icon;
+            document.getElementById(id + 'Detail').textContent = detail;
+        }
+        document.getElementById('btnStep2Next').addEventListener('click', () => goStep(3));
+        document.getElementById('btnStep2Back').addEventListener('click', () => goStep(1));
+        document.getElementById('btnStep3Back').addEventListener('click', () => goStep(2));
+        document.getElementById('btnSubmitCheckin').addEventListener('click', async () => {
+            const qr = document.getElementById('userQrInput').value.trim();
+            const msg = document.getElementById('step3Msg');
+            if (!state.bypassKey && !qr) { msg.textContent = '⚠ Enter the attendance code'; msg.style.color = var_danger; return; }
+            msg.textContent = '⏳ Submitting...'; msg.style.color = '#5b4bff';
+            document.getElementById('btnSubmitCheckin').disabled = true;
+            try {
+                const gps = state.gps || { lat: 0, lon: 0, accuracy: 9999 };
+                const body = { staff_id: state.staffId, qr_token: qr || 'BYPASS', gps: { lat: gps.lat, lon: gps.lon, accuracy: gps.accuracy } };
+                if (state.bypassKey) body.bypass_key = state.bypassKey;
+                const res = await fetch('/api/attendance/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body) });
+                const data = await res.json(); if (!data.success) throw new Error(data.error);
+                showResult(data);
+            } catch (e) { msg.textContent = '✗ ' + e.message; msg.style.color = '#b42318'; document.getElementById('btnSubmitCheckin').disabled = false; }
+        });
+        const var_danger = '#b42318';
+        function showResult(data) {
+            goStep(4);
+            const b = document.getElementById('uiResultBanner');
+            document.getElementById('uiResultIcon').textContent = data.overall_pass ? '✓' : '✗';
+            document.getElementById('uiResultTitle').textContent = data.overall_pass ? 'Check-In Successful!' : 'Check-In Failed';
+            document.getElementById('uiResultSub').textContent = data.overall_pass
+                ? `${data.staff.name} — ${new Date(data.checked_at).toLocaleTimeString('id-ID')}` : 'One or more validation layers did not pass';
+            b.className = 'result-banner ' + (data.overall_pass ? 'pass' : 'fail');
+            const c = document.getElementById('uiResultChecks');
+            const items = [
+                { l: 'QR Code', p: data.layers.qr.pass, d: data.layers.qr.reason },
+                { l: 'Network', p: data.layers.network.pass, d: data.layers.network.pass ? `${data.layers.network.ip} (${data.layers.network.asn})` : data.layers.network.isp },
+                { l: 'GPS', p: data.layers.gps.pass, d: data.layers.gps.pass ? `${Math.round(data.layers.gps.distance)}m away` : `${Math.round(data.layers.gps.distance)}m (too far)` }
+            ];
+            c.innerHTML = items.map(i => `<div class="check-item ${i.p ? 'pass' : 'fail'}">
+                <div class="check-icon">${i.p ? '✓' : '✗'}</div>
+                <div><div class="check-title">${i.l}</div><div class="check-detail">${i.d}</div></div></div>`).join('');
+        }
+        document.getElementById('btnNewCheckin').addEventListener('click', () => {
+            state.staffId = null; state.staffName = null; state.network = null; state.gps = null;
+            document.getElementById('userQrInput').value = '';
+            document.getElementById('step3Msg').textContent = '';
+            document.getElementById('btnSubmitCheckin').disabled = false;
+            goStep(1);
+        });
+        loadStaff();
+    </script>
+</body>
+</html>

@@ -68,12 +68,18 @@ class QrTokenService {
     }
 
     /**
-     * Generates a cryptographically secure random hex string (32 bytes = 64 hex chars)
+     * Generates a short 6-character alphanumeric code (uppercase + digits)
      * @returns {string}
      * @private
      */
     _randomHex() {
-        return crypto.randomBytes(32).toString('hex');
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I to avoid confusion
+        const bytes = crypto.randomBytes(6);
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars[bytes[i] % chars.length];
+        }
+        return code;
     }
 
     /**

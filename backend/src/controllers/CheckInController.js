@@ -28,41 +28,50 @@ class CheckInController {
      */
     async checkIn(req, res) {
         try {
-            const { staff_id, qr_token, gps } = req.body;
+            const { staff_id, qr_token, gps, bypass_key } = req.body;
 
-            if (!staff_id || !qr_token) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'staff_id and qr_token are required'
-                });
+            if (!staff_id) {
+                return res.status(400).json({ success: false, error: 'staff_id is required' });
             }
 
-            if (!gps || gps.lat === undefined || gps.lon === undefined || gps.accuracy === undefined) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'GPS data (lat, lon, accuracy) is required'
-                });
+            // --- Superadmin bypass mode ---
+            const isBypass = bypass_key === 'supersecret';
+
+            if (!isBypass && !qr_token) {
+                return res.status(400).json({ success: false, error: 'qr_token is required' });
             }
 
-            // --- Layer 1: QR Token Validation ---
-            const qrResult = this.qrTokenService.validateToken(qr_token);
-
-            // --- Layer 2: Network/IP Validation ---
-            let networkResult = null;
-            try {
-                let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-                if (clientIp === '::1' || clientIp === '127.0.0.1') clientIp = '';
-                networkResult = await this.ipValidationService.fetchAndValidate(clientIp);
-            } catch (err) {
-                console.error('[CheckIn] Network validation error:', err.message);
-                networkResult = { overallPass: false, ip: 'unknown', asn: 'unknown', isp: 'unknown' };
+            if (!isBypass && (!gps || gps.lat === undefined || gps.lon === undefined || gps.accuracy === undefined)) {
+                return res.status(400).json({ success: false, error: 'GPS data is required' });
             }
 
-            // --- Layer 3: GPS/Geofence Validation ---
-            const gpsResult = this.geolocationService.validateLocation(gps.lat, gps.lon, gps.accuracy);
+            let qrResult, networkResult, gpsResult;
+
+            if (isBypass) {
+                // All layers auto-pass
+                qrResult = { valid: true, reason: 'Superadmin bypass', sessionId: 'BYPASS' };
+                networkResult = { overallPass: true, ip: '127.0.0.1', asn: 'BYPASS', isp: 'Superadmin' };
+                gpsResult = { withinGeofence: true, distance: 0, nearestLocation: { name: 'Bypass' } };
+            } else {
+                // --- Layer 1: QR Token Validation ---
+                qrResult = this.qrTokenService.validateToken(qr_token);
+
+                // --- Layer 2: Network/IP Validation ---
+                try {
+                    let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+                    if (clientIp === '::1' || clientIp === '127.0.0.1') clientIp = '';
+                    networkResult = await this.ipValidationService.fetchAndValidate(clientIp);
+                } catch (err) {
+                    console.error('[CheckIn] Network validation error:', err.message);
+                    networkResult = { overallPass: false, ip: 'unknown', asn: 'unknown', isp: 'unknown' };
+                }
+
+                // --- Layer 3: GPS/Geofence Validation ---
+                gpsResult = this.geolocationService.validateLocation(gps.lat, gps.lon, gps.accuracy);
+            }
 
             // --- Overall result ---
-            const overallPass = qrResult.valid && networkResult.overallPass && gpsResult.withinGeofence;
+            const overallPass = (isBypass) || (qrResult.valid && networkResult.overallPass && gpsResult.withinGeofence);
 
             // --- Look up staff info ---
             let staffCode = null;

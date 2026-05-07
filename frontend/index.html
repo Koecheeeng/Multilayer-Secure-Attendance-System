@@ -1,452 +1,157 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Attendance System</title>
-    <meta name="description" content="Attendance System validation tool for Pustaka Dakwah.">
-    <link rel="stylesheet" href="assets/style.css">
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <title>Pustaka Dakwah — Attendance System</title>
+    <meta name="description" content="Pustaka Dakwah multilayer attendance system. Choose admin or staff access.">
+    <style>
+        :root {
+            --bg: #f4f4f4;
+            --text: #111;
+            --muted: #667085;
+            --primary: #5b4bff;
+            --border: rgba(17,17,17,0.14);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
+            background: linear-gradient(180deg, #f8f8f8 0%, #ececec 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+        }
+
+        .page {
+            flex: 1; display: grid; place-items: center; padding: 24px;
+            background:
+                radial-gradient(circle at 30% 20%, rgba(91,75,255,0.06), transparent 40%),
+                radial-gradient(circle at 70% 80%, rgba(168,85,247,0.05), transparent 40%);
+        }
+        .wrapper { width: min(920px, 100%); text-align: center; }
+
+        /* Brand */
+        .brand { margin-bottom: 36px; }
+        .brand-mark {
+            width: 72px; height: 72px; border-radius: 22px;
+            background: linear-gradient(135deg, #6547ff, #8b5cf6);
+            box-shadow: 0 16px 36px rgba(91,75,255,0.28);
+            display: grid; place-items: center; margin: 0 auto 18px;
+        }
+        .brand h1 {
+            font-size: clamp(36px, 5vw, 56px);
+            letter-spacing: -0.06em; line-height: 0.95; font-weight: 900;
+        }
+        .brand p { color: var(--muted); font-size: 16px; margin-top: 8px; }
+
+        /* Cards */
+        .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px; }
+        .role-card {
+            background: rgba(255,255,255,0.96);
+            border-radius: 28px;
+            box-shadow: 0 16px 45px rgba(17,17,17,0.08);
+            border: 1px solid rgba(255,255,255,0.72);
+            padding: 36px 28px;
+            text-decoration: none; color: inherit;
+            transition: transform .18s ease, box-shadow .18s ease;
+            display: flex; flex-direction: column; align-items: center; gap: 16px;
+            position: relative; overflow: hidden;
+        }
+        .role-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 24px 60px rgba(17,17,17,0.12);
+        }
+        .role-card::after {
+            content: ''; position: absolute; inset: auto -60px -80px auto;
+            width: 200px; height: 200px; border-radius: 50%;
+            pointer-events: none; opacity: 0.5;
+        }
+        .role-card.admin::after { background: radial-gradient(circle, rgba(91,75,255,0.12), transparent 70%); }
+        .role-card.staff::after { background: radial-gradient(circle, rgba(34,197,94,0.12), transparent 70%); }
+
+        .role-icon {
+            width: 64px; height: 64px; border-radius: 18px;
+            display: grid; place-items: center;
+            box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+        }
+        .role-card.admin .role-icon { background: linear-gradient(135deg, #6547ff, #8b5cf6); }
+        .role-card.staff .role-icon { background: linear-gradient(135deg, #22c55e, #16a34a); }
+
+        .role-title {
+            font-size: 24px; font-weight: 800; letter-spacing: -0.04em;
+        }
+        .role-desc { color: var(--muted); font-size: 14px; line-height: 1.5; max-width: 260px; }
+        .role-tag {
+            display: inline-block; padding: 8px 16px; border-radius: 999px;
+            font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
+        }
+        .role-card.admin .role-tag {
+            background: linear-gradient(90deg, rgba(91,75,255,0.12), rgba(168,85,247,0.08));
+            color: #3f3fdd;
+        }
+        .role-card.staff .role-tag {
+            background: rgba(34,197,94,0.1);
+            color: #067647;
+        }
+
+        .footer { text-align: center; padding: 20px; color: var(--muted); font-size: 12px; }
+
+        @media (max-width: 640px) {
+            .cards { grid-template-columns: 1fr; }
+            .role-card { padding: 28px 20px; }
+        }
+    </style>
 </head>
-
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="logo">
-                <div class="logo-icon">
-                    [P]
+    <div class="page">
+        <div class="wrapper">
+            <div class="brand">
+                <div class="brand-mark">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 24 24" fill="none"
+                        stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                        <line x1="8" y1="14" x2="8" y2="14.01" /><line x1="12" y1="14" x2="12" y2="14.01" />
+                        <line x1="16" y1="14" x2="16" y2="14.01" /><line x1="8" y1="18" x2="8" y2="18.01" />
+                    </svg>
                 </div>
-                <div>
-                    <h1>Attendance System</h1>
-                    <p class="subtitle">Pustaka Dakwah Attendance Validator</p>
-                </div>
-            </div>
-        </header>
-
-        <!-- Tab Bar -->
-        <div class="tab-bar">
-            <button class="tab-btn active" id="tabBtnNetwork">Network Check</button>
-            <button class="tab-btn" id="tabBtnLocation">Location Check</button>
-            <button class="tab-btn" id="tabBtnCheckin">Check In</button>
-        </div>
-
-        <!-- TAB 1: NETWORK CHECK -->
-        <div class="tab-content active" id="tabNetwork">
-            <div class="result-banner" id="resultBanner">
-                <div class="result-icon" id="resultIcon">?</div>
-                <div class="result-text">
-                    <h2 id="resultTitle">System Status: Idle</h2>
-                    <p id="resultSubtitle">Click the button to begin diagnostics</p>
-                </div>
-                <button class="btn-check" id="btnCheck">
-                    Refresh
-                </button>
+                <h1>Pustaka Dakwah</h1>
+                <p>Multilayer Secure Attendance System</p>
             </div>
 
-            <div class="cards-grid">
-                <div class="card">
-                    <span class="card-label">IP Address</span>
-                    <p class="card-value" id="ipAddress">—</p>
-                    <p class="card-detail" id="ipVersion">Detecting…</p>
-                </div>
-                <div class="card">
-                    <span class="card-label">ISP / Organization</span>
-                    <p class="card-value" id="ispName">—</p>
-                    <p class="card-detail" id="orgName">Detecting…</p>
-                </div>
-                <div class="card">
-                    <span class="card-label">ASN</span>
-                    <p class="card-value" id="asnNumber">—</p>
-                    <p class="card-detail" id="asnName">Detecting…</p>
-                </div>
-                <div class="card">
-                    <span class="card-label">Location</span>
-                    <p class="card-value" id="location">—</p>
-                    <p class="card-detail" id="coordinates">Detecting…</p>
-                </div>
-                <div class="card">
-                    <span class="card-label">Timezone</span>
-                    <p class="card-value" id="timezone">—</p>
-                    <p class="card-detail" id="timezoneOffset">Detecting…</p>
-                </div>
-                <div class="card">
-                    <span class="card-label">Network Type</span>
-                    <p class="card-value" id="connType">—</p>
-                    <p class="card-detail" id="connProxy">Detecting…</p>
-                </div>
-            </div>
+            <div class="cards">
+                <a href="login.html" class="role-card admin" id="cardAdmin">
+                    <div class="role-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
+                            stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                    </div>
+                    <h2 class="role-title">Admin</h2>
+                    <p class="role-desc">Manage staff, generate QR sessions, monitor attendance records, and configure system settings.</p>
+                    <span class="role-tag">Login as Admin →</span>
+                </a>
 
-            <div class="validation-section">
-                <h3 class="section-title">Validation Details</h3>
-                <div class="check-list">
-                    <div class="check-item" id="checkAsn">
-                        <span class="check-status" id="checkAsnStatus">[?]</span>
-                        <div>
-                            <span class="check-label">Network Validation</span>
-                            <span class="check-detail" id="checkAsnDetail">Pending check…</span>
-                        </div>
+                <a href="user.html" class="role-card staff" id="cardStaff">
+                    <div class="role-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none"
+                            stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                            <polyline points="22 4 12 14.01 9 11.01" />
+                        </svg>
                     </div>
-                    <div class="check-item" id="checkPrefix">
-                        <span class="check-status" id="checkPrefixStatus">[?]</span>
-                        <div>
-                            <span class="check-label">IP Range Validation</span>
-                            <span class="check-detail" id="checkPrefixDetail">Pending check…</span>
-                        </div>
-                    </div>
-                    <div class="check-item" id="checkCountry">
-                        <span class="check-status" id="checkCountryStatus">[?]</span>
-                        <div>
-                            <span class="check-label">Country Check (ID)</span>
-                            <span class="check-detail" id="checkCountryDetail">Pending check…</span>
-                        </div>
-                    </div>
-                    <div class="check-item" id="checkProxy">
-                        <span class="check-status" id="checkProxyStatus">[?]</span>
-                        <div>
-                            <span class="check-label">VPN/Proxy Filter</span>
-                            <span class="check-detail" id="checkProxyDetail">Pending check…</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="reference-section">
-                <h3 class="section-title">Network Reference</h3>
-                <div class="profile-grid">
-                    <div class="profile-item">
-                        <span class="profile-label">Organization</span>
-                        <span class="profile-value" id="refOrg">Pustaka Dakwah</span>
-                    </div>
-                    <div class="profile-item">
-                        <span class="profile-label">ASN Number</span>
-                        <span class="profile-value" id="refAsn">TBD</span>
-                    </div>
-                    <div class="profile-item">
-                        <span class="profile-label">Allowed Prefix</span>
-                        <span class="profile-value">45.251.4.0/22</span>
-                    </div>
-                    <div class="profile-item">
-                        <span class="profile-label">IP Range</span>
-                        <span class="profile-value">45.251.4.0 - 45.251.7.255</span>
-                    </div>
-                </div>
-                <div class="prefix-grid">
-                    <div class="prefix-tag" id="refPrefix">Target Subnet: 45.251.4.0/22 (255.255.252.0)</div>
-                </div>
+                    <h2 class="role-title">Staff</h2>
+                    <p class="role-desc">Check in to your shift by verifying your network, GPS location, and entering the attendance code.</p>
+                    <span class="role-tag">Check In as Staff →</span>
+                </a>
             </div>
         </div>
-
-        <!-- TAB 2: LOCATION CHECK -->
-        <div class="tab-content" id="tabLocation">
-            <div class="geo-gate" id="geoGate">
-                <h2>GPS Access Required</h2>
-                <p>Please authorize location access to verify your location.</p>
-                <button class="btn-geo" id="btnGeo">Authorize GPS</button>
-            </div>
-
-            <div class="loc-results" id="locResults" style="display:none;">
-                <div class="result-banner" id="locBanner">
-                    <div class="result-icon" id="locBannerIcon">?</div>
-                    <div class="result-text">
-                        <h2 id="locBannerTitle">Acquiring Location...</h2>
-                        <p id="locBannerSubtitle">Waiting for satellite lock</p>
-                    </div>
-                    <button class="btn-check" id="btnRefreshLoc">Refresh GPS</button>
-                </div>
-
-                <div class="cards-grid">
-                    <div class="card">
-                        <span class="card-label">Coordinates</span>
-                        <p class="card-value" id="locCoords">—</p>
-                        <p class="card-detail" id="locCoordsDetail">Waiting…</p>
-                    </div>
-                    <div class="card">
-                        <span class="card-label">Current Location</span>
-                        <p class="card-value" id="locLocation">—</p>
-                        <p class="card-detail" id="locLocationDetail">Waiting…</p>
-                    </div>
-                    <div class="card">
-                        <span class="card-label">Distance from Hub</span>
-                        <p class="card-value" id="locDistance">—</p>
-                        <p class="card-detail" id="locDistanceDetail">Waiting…</p>
-                    </div>
-                    <div class="card">
-                        <span class="card-label">GPS Accuracy</span>
-                        <p class="card-value" id="locAccuracy">—</p>
-                        <p class="card-detail" id="locAccuracyDetail">Waiting…</p>
-                    </div>
-                </div>
-
-                <div class="map-section">
-                    <h3 class="section-title">Location Map View</h3>
-                    <div class="map-wrap" id="mapContainer"></div>
-                </div>
-
-                <div class="validation-section">
-                    <h3 class="section-title">Geofence Validation</h3>
-                    <div class="check-list">
-                        <div class="check-item" id="checkGeo">
-                            <span class="check-status" id="checkGeoStatus">[?]</span>
-                            <div>
-                                <span class="check-label">GPS Metadata Valid</span>
-                                <span class="check-detail" id="checkGeoDetail">Pending…</span>
-                            </div>
-                        </div>
-                        <div class="check-item" id="checkVenue">
-                            <span class="check-status" id="checkVenueStatus">[?]</span>
-                            <div>
-                                <span class="check-label">Inside Pustaka Dakwah Boundary</span>
-                                <span class="check-detail" id="checkVenueDetail">Pending…</span>
-                            </div>
-                        </div>
-                        <div class="check-item" id="checkAccuracy">
-                            <span class="check-status" id="checkAccuracyStatus">[?]</span>
-                            <div>
-                                <span class="check-label">GPS Accuracy Check</span>
-                                <span class="check-detail" id="checkAccuracyDetail">Pending…</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 3: CHECK IN -->
-        <div class="tab-content" id="tabCheckin">
-            <div class="result-banner" id="checkinBanner">
-                <div class="result-icon" id="checkinBannerIcon">✓</div>
-                <div class="result-text">
-                    <h2 id="checkinBannerTitle">Staff Check-In</h2>
-                    <p id="checkinBannerSubtitle">Select your name, enter QR code, and check in</p>
-                </div>
-            </div>
-
-            <div class="validation-section" style="margin-bottom: 16px;">
-                <h3 class="section-title">Your Information</h3>
-                <div style="display: grid; gap: 12px; max-width: 500px;">
-                    <div>
-                        <label style="font-weight: 700; font-size: 13px; display: block; margin-bottom: 6px;">Staff Name</label>
-                        <select id="checkinStaffSelect" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.15); font-size: 15px; background: #fff;">
-                            <option value="">Loading staff list...</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="font-weight: 700; font-size: 13px; display: block; margin-bottom: 6px;">QR Token</label>
-                        <input id="checkinQrToken" type="text" placeholder="Enter or scan QR code token" style="width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.15); font-size: 15px; font-family: monospace;" />
-                    </div>
-                </div>
-            </div>
-
-            <!-- Layer Status -->
-            <div class="validation-section" style="margin-bottom: 16px;">
-                <h3 class="section-title">Validation Layers</h3>
-                <div class="check-list">
-                    <div class="check-item" id="ciCheckQr">
-                        <span class="check-status" id="ciCheckQrStatus">[?]</span>
-                        <div>
-                            <span class="check-label">QR Code</span>
-                            <span class="check-detail" id="ciCheckQrDetail">Enter a valid QR token</span>
-                        </div>
-                    </div>
-                    <div class="check-item" id="ciCheckNetwork">
-                        <span class="check-status" id="ciCheckNetworkStatus">[?]</span>
-                        <div>
-                            <span class="check-label">Network / WiFi</span>
-                            <span class="check-detail" id="ciCheckNetworkDetail">Auto-detected on submission</span>
-                        </div>
-                    </div>
-                    <div class="check-item" id="ciCheckGps">
-                        <span class="check-status" id="ciCheckGpsStatus">[?]</span>
-                        <div>
-                            <span class="check-label">GPS / Location</span>
-                            <span class="check-detail" id="ciCheckGpsDetail">Auto-detected on submission</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div style="text-align: center; padding: 20px 0;">
-                <button id="btnSubmitCheckin" style="padding: 16px 48px; border-radius: 14px; border: 0; background: linear-gradient(90deg, #22c55e, #16a34a); color: #fff; font-size: 18px; font-weight: 800; cursor: pointer; box-shadow: 0 12px 28px rgba(34,197,94,0.3); transition: transform .14s ease, box-shadow .14s ease; letter-spacing: -0.02em;">
-                    ✓ Check In Now
-                </button>
-                <div id="checkinMessage" style="margin-top: 12px; font-weight: 700; font-size: 14px;"></div>
-            </div>
-
-            <!-- Check-in Result -->
-            <div id="checkinResultArea" style="display: none;">
-                <div class="cards-grid">
-                    <div class="card">
-                        <span class="card-label">Network</span>
-                        <p class="card-value" id="ciResNetwork">—</p>
-                        <p class="card-detail" id="ciResNetworkDetail"></p>
-                    </div>
-                    <div class="card">
-                        <span class="card-label">GPS</span>
-                        <p class="card-value" id="ciResGps">—</p>
-                        <p class="card-detail" id="ciResGpsDetail"></p>
-                    </div>
-                    <div class="card">
-                        <span class="card-label">QR Code</span>
-                        <p class="card-value" id="ciResQr">—</p>
-                        <p class="card-detail" id="ciResQrDetail"></p>
-                    </div>
-                    <div class="card">
-                        <span class="card-label">Overall</span>
-                        <p class="card-value" id="ciResOverall">—</p>
-                        <p class="card-detail" id="ciResOverallDetail"></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <footer class="footer">
-            <p>Attendance System v1.0.0 &copy; 2024</p>
-        </footer>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="models/NetworkResult.js"></script>
-    <script src="models/LocationResult.js"></script>
-    <script src="services/AttendanceApiService.js"></script>
-    <script src="views/NetworkView.js"></script>
-    <script src="views/LocationView.js"></script>
-    <script src="controllers/NetworkController.js"></script>
-    <script src="controllers/LocationController.js"></script>
-    <script src="app.js"></script>
-    <script>
-        // ===== Check-In Tab Logic =====
-        (function() {
-            const tabBtnCheckin = document.getElementById('tabBtnCheckin');
-            const tabCheckin = document.getElementById('tabCheckin');
-
-            // Tab switching for the new Check In tab
-            tabBtnCheckin.addEventListener('click', () => {
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                tabBtnCheckin.classList.add('active');
-                tabCheckin.classList.add('active');
-                loadStaffListForCheckin();
-            });
-
-            // Load staff list
-            async function loadStaffListForCheckin() {
-                try {
-                    const res = await fetch('/api/staff/active');
-                    const data = await res.json();
-                    const select = document.getElementById('checkinStaffSelect');
-                    if (data.success && data.data.length > 0) {
-                        select.innerHTML = '<option value="">-- Select your name --</option>' +
-                            data.data.map(s => `<option value="${s.id}">${s.staff_code} — ${s.full_name} (${s.department || 'N/A'})</option>`).join('');
-                    } else {
-                        select.innerHTML = '<option value="">No active staff found</option>';
-                    }
-                } catch (err) {
-                    console.error('Load staff error:', err);
-                }
-            }
-
-            // Check in submit
-            document.getElementById('btnSubmitCheckin').addEventListener('click', async () => {
-                const staffId = document.getElementById('checkinStaffSelect').value;
-                const qrToken = document.getElementById('checkinQrToken').value.trim();
-                const msgEl = document.getElementById('checkinMessage');
-
-                if (!staffId) { msgEl.textContent = '⚠ Please select your name'; msgEl.style.color = '#b42318'; return; }
-                if (!qrToken) { msgEl.textContent = '⚠ Please enter QR token'; msgEl.style.color = '#b42318'; return; }
-
-                msgEl.textContent = '⏳ Checking in... acquiring GPS...';
-                msgEl.style.color = '#6366f1';
-
-                // Get GPS
-                let gps = { lat: 0, lon: 0, accuracy: 9999 };
-                try {
-                    const pos = await new Promise((resolve, reject) => {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, {
-                            enableHighAccuracy: true, timeout: 10000, maximumAge: 0
-                        });
-                    });
-                    gps = { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy };
-                } catch (gpsErr) {
-                    console.warn('GPS failed:', gpsErr);
-                    // Still try to check in with bad GPS coords
-                }
-
-                msgEl.textContent = '⏳ Validating layers...';
-
-                try {
-                    const res = await fetch('/api/attendance/checkin', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ staff_id: staffId, qr_token: qrToken, gps })
-                    });
-                    const data = await res.json();
-
-                    if (!data.success) throw new Error(data.error);
-
-                    // Update layer checks
-                    setCheckItem('ciCheckQr', data.layers.qr.pass, data.layers.qr.reason);
-                    setCheckItem('ciCheckNetwork', data.layers.network.pass, data.layers.network.pass ? `IP ${data.layers.network.ip} — ASN ${data.layers.network.asn}` : `Network mismatch: ${data.layers.network.isp}`);
-                    setCheckItem('ciCheckGps', data.layers.gps.pass, data.layers.gps.pass ? `Within ${data.layers.gps.nearest} (${Math.round(data.layers.gps.distance)}m)` : `Too far: ${Math.round(data.layers.gps.distance)}m away`);
-
-                    // Update banner
-                    const banner = document.getElementById('checkinBanner');
-                    const bannerIcon = document.getElementById('checkinBannerIcon');
-                    const bannerTitle = document.getElementById('checkinBannerTitle');
-                    const bannerSubtitle = document.getElementById('checkinBannerSubtitle');
-
-                    if (data.overall_pass) {
-                        banner.className = 'result-banner pass';
-                        bannerIcon.textContent = '✓';
-                        bannerTitle.textContent = '✓ Check-In Successful!';
-                        bannerSubtitle.textContent = `${data.staff.name} — checked in at ${new Date(data.checked_at).toLocaleTimeString('id-ID')}`;
-                        msgEl.textContent = '✓ Check-in recorded successfully!';
-                        msgEl.style.color = '#067647';
-                    } else {
-                        banner.className = 'result-banner fail';
-                        bannerIcon.textContent = '✗';
-                        bannerTitle.textContent = '✗ Check-In Failed';
-                        bannerSubtitle.textContent = 'One or more validation layers did not pass';
-                        msgEl.textContent = '✗ Check-in failed — see validation details above';
-                        msgEl.style.color = '#b42318';
-                    }
-
-                    // Show result cards
-                    document.getElementById('checkinResultArea').style.display = 'block';
-                    document.getElementById('ciResNetwork').textContent = data.layers.network.pass ? 'PASS' : 'FAIL';
-                    document.getElementById('ciResNetworkDetail').textContent = data.layers.network.ip || '';
-                    document.getElementById('ciResGps').textContent = data.layers.gps.pass ? 'PASS' : 'FAIL';
-                    document.getElementById('ciResGpsDetail').textContent = `${Math.round(data.layers.gps.distance || 0)}m away`;
-                    document.getElementById('ciResQr').textContent = data.layers.qr.pass ? 'PASS' : 'FAIL';
-                    document.getElementById('ciResQrDetail').textContent = data.layers.qr.reason;
-                    document.getElementById('ciResOverall').textContent = data.overall_pass ? 'PASS' : 'FAIL';
-                    document.getElementById('ciResOverallDetail').textContent = data.db_saved ? 'Record saved' : 'Not saved (table not ready)';
-
-                    // Clear QR token input
-                    document.getElementById('checkinQrToken').value = '';
-
-                } catch (err) {
-                    msgEl.textContent = '✗ Error: ' + err.message;
-                    msgEl.style.color = '#b42318';
-                }
-            });
-
-            function setCheckItem(id, pass, detail) {
-                const item = document.getElementById(id);
-                const status = document.getElementById(id + 'Status');
-                const detailEl = document.getElementById(id + 'Detail');
-                if (item) item.className = 'check-item ' + (pass ? 'pass' : 'fail');
-                if (status) status.textContent = pass ? '[ OK ]' : '[ !! ]';
-                if (detailEl) detailEl.textContent = detail;
-            }
-
-            // Pre-load staff list
-            loadStaffListForCheckin();
-        })();
-    </script>
+    <footer class="footer">
+        Pustaka Dakwah Attendance System v1.0 &copy; 2024
+    </footer>
 </body>
-
 </html>
