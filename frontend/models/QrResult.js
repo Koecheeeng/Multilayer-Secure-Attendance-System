@@ -3,6 +3,8 @@
  *
  * Pure data model for a QR token API response.
  * Zero fetch(), zero DOM access.
+ * * ROLE: Encapsulates the state of a single dynamic QR token used for 
+ * Layer 1 (something the user does/scans) of the Multi-Layer Security System.
  */
 class QrResult {
     /**

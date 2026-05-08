@@ -1,0 +1,9 @@
+# Dependency folders
+backend/node_modules/
+
+# Local environment variables (Supabase keys)
+backend/.env
+
+# OS generated files
+.DS_Store
+Thumbs.db
