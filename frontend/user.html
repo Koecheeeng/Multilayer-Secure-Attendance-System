@@ -339,7 +339,7 @@
             setCheckUI('uiCheckNetwork', 'loading', '⏳', 'Checking network...');
             try {
                 const res = await fetch('/api/network/check'); const data = await res.json();
-                state.network = data.data; const pass = data.data.overallPass;
+                state.network = data.data; const pass = data.data.asnMatch && data.data.prefixMatch && data.data.countryMatch;
                 setCheckUI('uiCheckNetwork', pass ? 'pass' : 'fail', pass ? '✓' : '✗',
                     pass ? `${data.data.asn} — ${data.data.isp}` : `Not on Pustaka Dakwah network (${data.data.isp})`);
                 document.getElementById('uiIp').textContent = data.data.ip;
