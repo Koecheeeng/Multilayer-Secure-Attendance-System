@@ -3,6 +3,8 @@
  *
  * API Service for communicating with the backend.
  * This is the ONLY file that makes HTTP calls.
+ * * * DESIGN PATTERN: This acts as the "Service Layer" in your MVC architecture, 
+ * abstracting fetch logic away from the Controllers.
  */
 class AttendanceApiService {
     constructor() {

@@ -4,8 +4,11 @@
  * Controller for QR code session management on the manager page.
  * Orchestrates: calls apiService → passes QrResult to view.
  * Zero DOM access, zero business logic.
+ * * ROLE: The "Brain" that coordinates the 15-second security rotation.
  */
 
+/** * Strict security requirement: Tokens must rotate every 15 seconds 
+ * to prevent students from sharing screenshots.
 /** Auto-refresh interval in milliseconds */
 const QR_REFRESH_MS = 15000;
 
