@@ -27,7 +27,7 @@ class AttendanceController {
             const result = await this.ipValidationService.fetchAndValidate(clientIp);
             res.json({
                 success: true,
-                data: result,
+                data: { ...result, overallPass: result.overallPass },
                 venueAsnInfo: this.ipValidationService.getVenueAsnInfo()
             });
         } catch (error) {
