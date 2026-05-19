@@ -42,4 +42,29 @@ router.get('/staff/active', async (req, res) => {
     }
 });
 
+
+
+router.get('/attendance/live', async (req, res) => {
+    try {
+        const { sessionId } = req.query;
+        if (!sessionId) {
+            return res.status(400).json({ success: false, error: 'sessionId est requis' });
+        }
+        
+        const supabase = require('../config/supabase');
+        
+        const { data, error } = await supabase
+            .from('attendance_records')
+            .select('id, staff_name, checked_at, overall_pass')
+            .eq('qr_session_id', sessionId)
+            .order('checked_at', { ascending: false });
+
+        if (error) throw error;
+        
+        res.json({ success: true, data: data || [] });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 module.exports = router;
