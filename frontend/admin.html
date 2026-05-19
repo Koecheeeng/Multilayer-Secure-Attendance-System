@@ -403,11 +403,12 @@
         await loadAttendanceHistory();
       }
     }
-
     // ===== Attendance Tab Logic =====
 
     let qrInterval = null;
     let qrSessionActive = false;
+    let lastRecordCount = 0; 
+    let livePollInterval = null; 
 
     async function loadAttendanceToday() {
       try {
@@ -428,15 +429,16 @@
       }
     }
 
-    async function loadAttendanceHistory() {
+ async function loadAttendanceHistory() {
       try {
         const result = await api('/attendance/history');
         const records = result.data || [];
+        
         const tbody = qs('attHistoryBody');
         if (!tbody) return;
 
         if (records.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" class="muted">No attendance records yet.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" class="muted">No records yet.</td></tr>';
           return;
         }
 
@@ -460,28 +462,62 @@
         }).join('');
       } catch (err) {
         console.error('Load attendance history error:', err);
-        const tbody = qs('attHistoryBody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="muted">Failed to load history.</td></tr>';
       }
     }
 
-    async function startQrSession() {
+    function resetQrTimer(sessionId) {
+        if (qrInterval) clearInterval(qrInterval);
+        qrInterval = setInterval(() => refreshQrCode(sessionId), 15000);
+    }
+
+   async function startQrSession() {
       const sessionInput = qs('attSessionId');
       const sessionId = (sessionInput?.value || '').trim() || 'SESSION-' + Date.now().toString(36).toUpperCase();
       sessionInput.value = sessionId;
 
       qrSessionActive = true;
+      lastRecordCount = 0; 
       qs('btnStartQr').disabled = true;
       qs('btnStopQr').disabled = false;
       setMessage(qs('attQrMessage'), 'QR session active: ' + sessionId);
 
       await refreshQrCode(sessionId);
-      qrInterval = setInterval(() => refreshQrCode(sessionId), 15000);
+      resetQrTimer(sessionId);
+      
+      await loadAttendanceHistory();
+      await loadAttendanceToday();
+      
+      if (livePollInterval) clearInterval(livePollInterval);
+      livePollInterval = setInterval(async () => {
+          if (!qrSessionActive) return;
+          
+          try {
+              const res = await fetch(`/api/attendance/live?sessionId=${encodeURIComponent(sessionId)}`);
+              const json = await res.json();
+              
+              if (json.success && json.data) {
+                  const currentCount = json.data.length;
+                  
+                  if (currentCount > lastRecordCount) {
+                      lastRecordCount = currentCount; 
+                      
+                      await refreshQrCode(sessionId);
+                      resetQrTimer(sessionId);
+                      
+                      await loadAttendanceHistory();
+                      await loadAttendanceToday();
+                  }
+              }
+          } catch (err) {
+              console.error('Erreur lors de la boucle live:', err);
+          }
+      }, 2000);
     }
 
     function stopQrSession() {
       qrSessionActive = false;
       if (qrInterval) { clearInterval(qrInterval); qrInterval = null; }
+      if (livePollInterval) { clearInterval(livePollInterval); livePollInterval = null; }
       qs('btnStartQr').disabled = false;
       qs('btnStopQr').disabled = true;
       const img = qs('attQrImage');
@@ -500,24 +536,25 @@
 
         const img = qs('attQrImage');
         if (img) img.src = data.qrDataUrl;
-        qs('attQrToken').textContent = data.token;
-        const fullTokenEl = qs('attQrFullToken');
-        if (fullTokenEl) fullTokenEl.value = data.token;
+        qs('attQrToken').textContent = data.token.substring(0, 12) + '…';
 
-        // Countdown timer
         const lifetime = data.lifetimeMs / 1000;
         let remaining = lifetime;
         const countdownEl = qs('attQrCountdown');
-        const countdownInterval = setInterval(() => {
+        
+        if (window.currentCountdown) clearInterval(window.currentCountdown);
+        
+        window.currentCountdown = setInterval(() => {
           remaining--;
           if (countdownEl) countdownEl.textContent = remaining + 's';
-          if (remaining <= 0) clearInterval(countdownInterval);
+          if (remaining <= 0) clearInterval(window.currentCountdown);
         }, 1000);
         if (countdownEl) countdownEl.textContent = lifetime + 's';
       } catch (err) {
         console.error('QR refresh error:', err);
       }
     }
+    
 
 
     async function signOut() {
