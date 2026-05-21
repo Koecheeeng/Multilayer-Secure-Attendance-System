@@ -20,6 +20,9 @@ class AttendanceController {
     async checkNetwork(req, res) {
         try {
             let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+            if (clientIp && typeof clientIp === 'string') {
+                clientIp = clientIp.split(',')[0].trim();
+            }
             // Strip private/loopback/Docker IPs — let ip-api detect the real public IP
             if (clientIp === '::1' || clientIp === '127.0.0.1' ||
                 /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(clientIp) ||

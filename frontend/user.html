@@ -588,7 +588,8 @@
                 setCheckUI('uiCheckGps', pass ? 'pass' : (accurate ? 'fail' : 'warn'), pass ? '✓' : (accurate ? '✗' : '⚠'), detail);
 
                 qs('uiDistance').textContent = dist;
-                qs('uiAccuracy').textContent = `±${Math.round(gps.accuracy)}m accuracy`;
+                const accuracyEl = qs('uiDistanceDetail') || qs('uiAccuracy');
+                if (accuracyEl) accuracyEl.textContent = `±${Math.round(gps.accuracy)}m accuracy`;
 
                 if (pass) btn.disabled = false;
             } catch (e) {

@@ -36,12 +36,13 @@ class IpValidationService {
 
     _checkIpInVenuePrefixes(ip) {
         if (ip.includes(':')) {
-            if (!VENUE_IPV6_PREFIX) return { match: false, matchedPrefix: null, isIpv6: true };
-            return {
-                match: this._isIpv6InPrefix(ip, VENUE_IPV6_PREFIX),
-                matchedPrefix: VENUE_IPV6_PREFIX,
-                isIpv6: true
-            };
+            if (!VENUE_IPV6_PREFIXES || VENUE_IPV6_PREFIXES.length === 0) return { match: false, matchedPrefix: null, isIpv6: true };
+            for (const prefix of VENUE_IPV6_PREFIXES) {
+                if (this._isIpv6InPrefix(ip, prefix)) {
+                    return { match: true, matchedPrefix: prefix, isIpv6: true };
+                }
+            }
+            return { match: false, matchedPrefix: null, isIpv6: true };
         }
         for (const prefix of VENUE_IPV4_PREFIXES) {
             if (this._isIpInCidr(ip, prefix.network, prefix.mask)) {
