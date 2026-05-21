@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,12 +13,12 @@
             --surface-2: #f8f8fb;
             --text: #111111;
             --muted: #667085;
-            --border: rgba(17,17,17,0.14);
-            --shadow: 0 16px 45px rgba(17,17,17,0.08);
-            --shadow-soft: 0 10px 24px rgba(17,17,17,0.06);
+            --border: rgba(17, 17, 17, 0.14);
+            --shadow: 0 16px 45px rgba(17, 17, 17, 0.08);
+            --shadow-soft: 0 10px 24px rgba(17, 17, 17, 0.06);
             --primary: #5b4bff;
             --primary-2: #a855f7;
-            --primary-soft: rgba(91,75,255,0.14);
+            --primary-soft: rgba(91, 75, 255, 0.14);
             --danger: #b42318;
             --success: #067647;
             --radius-xl: 28px;
@@ -27,179 +28,482 @@
             font-synthesis-weight: none;
             text-rendering: geometricPrecision;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
             font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             background: linear-gradient(180deg, #f8f8f8 0%, #ececec 100%);
             color: var(--text);
             min-height: 100vh;
         }
-        button, input, select { font: inherit; }
-        button { cursor: pointer; }
+
+        button,
+        input,
+        select {
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
+        }
 
         /* Header */
         .topbar {
-            height: 84px; display: flex; align-items: center; justify-content: space-between;
-            gap: 16px; padding: 16px 24px 14px; border-bottom: 1px solid rgba(0,0,0,0.08);
-            background: rgba(255,255,255,0.96); backdrop-filter: blur(8px);
-            position: sticky; top: 0; z-index: 20;
+            height: 84px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 16px 24px 14px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(8px);
+            position: sticky;
+            top: 0;
+            z-index: 20;
         }
-        .brand { display: flex; align-items: center; gap: 14px; }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
         .brand-mark {
-            width: 56px; height: 56px; border-radius: 16px;
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
             background: linear-gradient(135deg, #6547ff, #8b5cf6);
-            box-shadow: 0 12px 26px rgba(91,75,255,0.28);
-            display: grid; place-items: center;
+            box-shadow: 0 12px 26px rgba(91, 75, 255, 0.28);
+            display: grid;
+            place-items: center;
         }
-        .brand-mark svg { color: #fff; }
-        .brand-copy { display: grid; line-height: 1.05; }
-        .brand-copy strong { font-size: 24px; letter-spacing: -0.03em; }
-        .brand-copy span { font-size: 14px; color: var(--muted); }
+
+        .brand-mark svg {
+            color: #fff;
+        }
+
+        .brand-copy {
+            display: grid;
+            line-height: 1.05;
+        }
+
+        .brand-copy strong {
+            font-size: 24px;
+            letter-spacing: -0.03em;
+        }
+
+        .brand-copy span {
+            font-size: 14px;
+            color: var(--muted);
+        }
 
         /* Main */
         .main-wrap {
-            max-width: 680px; margin: 0 auto; padding: 24px 18px;
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 24px 18px;
         }
 
         /* Steps indicator */
-        .step-bar { display: flex; gap: 6px; margin-bottom: 24px; }
-        .step-pip {
-            flex: 1; height: 5px; border-radius: 5px;
-            background: rgba(0,0,0,0.08); transition: background .3s;
+        .step-bar {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 24px;
         }
-        .step-pip.active { background: linear-gradient(90deg, #5b4bff, #a855f7); }
-        .step-pip.done { background: var(--success); }
 
-        .step-panel { display: none; animation: fadeIn .2s ease; }
-        .step-panel.active { display: block; }
-        @keyframes fadeIn { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform: translateY(0); } }
+        .step-pip {
+            flex: 1;
+            height: 5px;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.08);
+            transition: background .3s;
+        }
+
+        .step-pip.active {
+            background: linear-gradient(90deg, #5b4bff, #a855f7);
+        }
+
+        .step-pip.done {
+            background: var(--success);
+        }
+
+        .step-panel {
+            display: none;
+            animation: fadeIn .2s ease;
+        }
+
+        .step-panel.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
         /* Cards */
         .card {
-            background: rgba(255,255,255,0.96); border-radius: var(--radius-xl);
-            box-shadow: var(--shadow); border: 1px solid rgba(255,255,255,0.72);
-            padding: 24px; margin-bottom: 16px;
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.72);
+            padding: 24px;
+            margin-bottom: 16px;
         }
-        .card-title { font-size: 30px; font-weight: 800; letter-spacing: -0.05em; margin: 0 0 6px; }
-        .card-subtitle { color: var(--muted); font-size: 15px; margin-bottom: 20px; }
 
-        .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        .card-title {
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            margin: 0 0 6px;
+        }
+
+        .card-subtitle {
+            color: var(--muted);
+            font-size: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
         .stat-card {
-            background: rgba(255,255,255,0.96); border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-soft); border: 1px solid rgba(0,0,0,0.06);
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+            border: 1px solid rgba(0, 0, 0, 0.06);
             padding: 16px;
         }
-        .stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--primary); }
-        .stat-value { font-size: 20px; font-weight: 800; margin: 6px 0 2px; letter-spacing: -0.03em; }
-        .stat-detail { font-size: 12px; color: var(--muted); }
+
+        .stat-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--primary);
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 800;
+            margin: 6px 0 2px;
+            letter-spacing: -0.03em;
+        }
+
+        .stat-detail {
+            font-size: 12px;
+            color: var(--muted);
+        }
 
         /* Check items */
-        .check-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+        .check-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
         .check-item {
-            display: flex; align-items: center; gap: 14px; padding: 14px 16px;
-            border-radius: 14px; border: 1px solid rgba(0,0,0,0.06);
-            background: rgba(0,0,0,0.02); transition: all .2s;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            background: rgba(0, 0, 0, 0.02);
+            transition: all .2s;
         }
-        .check-item.pass { background: rgba(6,118,71,0.06); border-color: rgba(6,118,71,0.15); }
-        .check-item.fail { background: rgba(180,35,24,0.06); border-color: rgba(180,35,24,0.15); }
-        .check-item.loading { background: rgba(91,75,255,0.06); border-color: rgba(91,75,255,0.12); }
+
+        .check-item.pass {
+            background: rgba(6, 118, 71, 0.06);
+            border-color: rgba(6, 118, 71, 0.15);
+        }
+
+        .check-item.fail {
+            background: rgba(180, 35, 24, 0.06);
+            border-color: rgba(180, 35, 24, 0.15);
+        }
+
+        .check-item.loading {
+            background: rgba(91, 75, 255, 0.06);
+            border-color: rgba(91, 75, 255, 0.12);
+        }
+
         .check-icon {
-            width: 40px; height: 40px; border-radius: 12px;
-            display: grid; place-items: center; font-weight: 800; font-size: 15px;
-            background: rgba(0,0,0,0.04); flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            font-weight: 800;
+            font-size: 15px;
+            background: rgba(0, 0, 0, 0.04);
+            flex-shrink: 0;
         }
-        .check-item.pass .check-icon { background: rgba(6,118,71,0.12); color: var(--success); }
-        .check-item.fail .check-icon { background: rgba(180,35,24,0.12); color: var(--danger); }
-        .check-item.loading .check-icon { background: var(--primary-soft); color: var(--primary); }
-        .check-title { font-weight: 700; font-size: 14px; }
-        .check-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+        .check-item.pass .check-icon {
+            background: rgba(6, 118, 71, 0.12);
+            color: var(--success);
+        }
+
+        .check-item.fail .check-icon {
+            background: rgba(180, 35, 24, 0.12);
+            color: var(--danger);
+        }
+
+        .check-item.loading .check-icon {
+            background: var(--primary-soft);
+            color: var(--primary);
+        }
+
+        .check-title {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .check-detail {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px;
+        }
 
         /* Form fields */
-        .field { margin-bottom: 16px; }
-        .field label { display: block; font-size: 13px; font-weight: 600; color: #1f2937; margin-bottom: 8px; }
-        .input, .select-input {
-            width: 100%; min-height: 50px; border-radius: 14px;
-            border: 1px solid rgba(0,0,0,0.16); padding: 14px;
-            background: #fff; outline: none; font-size: 15px;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 1px 2px rgba(0,0,0,0.03);
+        .field {
+            margin-bottom: 16px;
+        }
+
+        .field label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+
+        .input,
+        .select-input {
+            width: 100%;
+            min-height: 50px;
+            border-radius: 14px;
+            border: 1px solid rgba(0, 0, 0, 0.16);
+            padding: 14px;
+            background: #fff;
+            outline: none;
+            font-size: 15px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 2px rgba(0, 0, 0, 0.03);
             transition: border-color .14s, box-shadow .14s;
         }
-        .input:focus, .select-input:focus { border-color: rgba(91,75,255,0.55); box-shadow: 0 0 0 4px rgba(91,75,255,0.10); }
-        .input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+        .input:focus,
+        .select-input:focus {
+            border-color: rgba(91, 75, 255, 0.55);
+            box-shadow: 0 0 0 4px rgba(91, 75, 255, 0.10);
+        }
+
+        .input.mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
 
         /* Buttons */
         .btn-primary {
-            width: 100%; padding: 16px; border: 0; border-radius: 16px;
+            width: 100%;
+            padding: 16px;
+            border: 0;
+            border-radius: 16px;
             background: linear-gradient(90deg, #141d33, #0f172a);
-            color: #fff; font-size: 16px; font-weight: 700;
-            box-shadow: 0 12px 26px rgba(15,23,42,0.16);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            box-shadow: 0 12px 26px rgba(15, 23, 42, 0.16);
             transition: transform .14s, box-shadow .14s;
         }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 32px rgba(15,23,42,0.22); }
-        .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-        .btn-success {
-            width: 100%; padding: 18px; border: 0; border-radius: 16px;
-            background: linear-gradient(90deg, #067647, #10b981);
-            color: #fff; font-size: 18px; font-weight: 800;
-            box-shadow: 0 12px 26px rgba(6,118,71,0.2);
-            transition: transform .14s, box-shadow .14s;
-        }
-        .btn-success:hover { transform: translateY(-2px); box-shadow: 0 16px 32px rgba(6,118,71,0.28); }
-        .btn-success:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-        .btn-ghost {
-            padding: 12px 20px; border: 0; border-radius: 14px;
-            background: #fff; color: #111;
-            box-shadow: inset 0 0 0 1px var(--border);
-            font-weight: 700; font-size: 13px; transition: transform .14s;
-        }
-        .btn-ghost:hover { transform: translateY(-1px); }
 
-        .msg { text-align: center; font-weight: 700; font-size: 14px; margin-top: 14px; min-height: 20px; }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.22);
+        }
+
+        .btn-primary:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            width: 100%;
+            padding: 18px;
+            border: 0;
+            border-radius: 16px;
+            background: linear-gradient(90deg, #067647, #10b981);
+            color: #fff;
+            font-size: 18px;
+            font-weight: 800;
+            box-shadow: 0 12px 26px rgba(6, 118, 71, 0.2);
+            transition: transform .14s, box-shadow .14s;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 32px rgba(6, 118, 71, 0.28);
+        }
+
+        .btn-success:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-ghost {
+            padding: 12px 20px;
+            border: 0;
+            border-radius: 14px;
+            background: #fff;
+            color: #111;
+            box-shadow: inset 0 0 0 1px var(--border);
+            font-weight: 700;
+            font-size: 13px;
+            transition: transform .14s;
+        }
+
+        .btn-ghost:hover {
+            transform: translateY(-1px);
+        }
+
+        .msg {
+            text-align: center;
+            font-weight: 700;
+            font-size: 14px;
+            margin-top: 14px;
+            min-height: 20px;
+        }
 
         /* Result banner */
         .result-banner {
-            border-radius: var(--radius-xl); padding: 28px; text-align: center;
-            margin-bottom: 16px; background: var(--surface);
-            box-shadow: var(--shadow); border: 1px solid rgba(255,255,255,0.72);
+            border-radius: var(--radius-xl);
+            padding: 28px;
+            text-align: center;
+            margin-bottom: 16px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255, 255, 255, 0.72);
         }
-        .result-banner.pass { border-left: 6px solid var(--success); }
-        .result-banner.fail { border-left: 6px solid var(--danger); }
-        .r-icon { font-size: 48px; margin-bottom: 12px; }
-        .r-title { font-size: 24px; font-weight: 900; letter-spacing: -0.05em; }
-        .r-sub { color: var(--muted); font-size: 14px; margin-top: 6px; }
 
-        .footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px; }
+        .result-banner.pass {
+            border-left: 6px solid var(--success);
+        }
+
+        .result-banner.fail {
+            border-left: 6px solid var(--danger);
+        }
+
+        .r-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .r-title {
+            font-size: 24px;
+            font-weight: 900;
+            letter-spacing: -0.05em;
+        }
+
+        .r-sub {
+            color: var(--muted);
+            font-size: 14px;
+            margin-top: 6px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 24px;
+            color: var(--muted);
+            font-size: 12px;
+        }
 
         /* Shift info & late notification */
         .shift-banner {
-            border-radius: 16px; padding: 16px 18px; margin-bottom: 16px;
-            display: none; animation: fadeIn .2s ease;
+            border-radius: 16px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+            display: none;
+            animation: fadeIn .2s ease;
         }
+
         .shift-banner.on-time {
-            background: rgba(6,118,71,0.06); border: 1px solid rgba(6,118,71,0.18);
+            background: rgba(6, 118, 71, 0.06);
+            border: 1px solid rgba(6, 118, 71, 0.18);
         }
+
         .shift-banner.late {
-            background: rgba(180,35,24,0.06); border: 1px solid rgba(180,35,24,0.20);
+            background: rgba(180, 35, 24, 0.06);
+            border: 1px solid rgba(180, 35, 24, 0.20);
         }
+
         .shift-banner .shift-title {
-            font-weight: 800; font-size: 15px; margin-bottom: 4px;
+            font-weight: 800;
+            font-size: 15px;
+            margin-bottom: 4px;
         }
-        .shift-banner.late .shift-title { color: #b42318; }
-        .shift-banner.on-time .shift-title { color: #067647; }
-        .shift-banner .shift-detail { font-size: 13px; color: var(--muted); }
+
+        .shift-banner.late .shift-title {
+            color: #b42318;
+        }
+
+        .shift-banner.on-time .shift-title {
+            color: #067647;
+        }
+
+        .shift-banner .shift-detail {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
         .late-badge-result {
-            display: inline-block; padding: 8px 14px; border-radius: 12px;
-            background: rgba(180,35,24,0.08); color: #b42318;
-            font-size: 14px; font-weight: 700; margin-top: 10px;
+            display: inline-block;
+            padding: 8px 14px;
+            border-radius: 12px;
+            background: rgba(180, 35, 24, 0.08);
+            color: #b42318;
+            font-size: 14px;
+            font-weight: 700;
+            margin-top: 10px;
         }
 
         @media (max-width: 520px) {
-            .stat-row { grid-template-columns: 1fr; }
-            .topbar { height: auto; flex-direction: column; align-items: flex-start; }
-            .card-title { font-size: 24px; }
+            .stat-row {
+                grid-template-columns: 1fr;
+            }
+
+            .topbar {
+                height: auto;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .card-title {
+                font-size: 24px;
+            }
         }
     </style>
 </head>
+
 <body>
     <header class="topbar">
         <div class="brand">
@@ -207,10 +511,13 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none"
                     stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
                     <line x1="3" y1="10" x2="21" y2="10" />
-                    <line x1="8" y1="14" x2="8" y2="14.01" /><line x1="12" y1="14" x2="12" y2="14.01" />
-                    <line x1="16" y1="14" x2="16" y2="14.01" /><line x1="8" y1="18" x2="8" y2="18.01" />
+                    <line x1="8" y1="14" x2="8" y2="14.01" />
+                    <line x1="12" y1="14" x2="12" y2="14.01" />
+                    <line x1="16" y1="14" x2="16" y2="14.01" />
+                    <line x1="8" y1="18" x2="8" y2="18.01" />
                 </svg>
             </div>
             <div class="brand-copy">
@@ -235,21 +542,27 @@
                 <p class="card-subtitle">Sign in with your email to begin attendance check-in.</p>
                 <div class="field">
                     <label>Email</label>
-                    <input type="email" id="loginEmail" class="input" placeholder="your.email@example.com" autocomplete="email" />
+                    <input type="email" id="loginEmail" class="input" placeholder="your.email@example.com"
+                        autocomplete="email" />
                 </div>
                 <div class="field">
                     <label>Password</label>
-                    <input type="password" id="loginPassword" class="input" placeholder="Enter your password" autocomplete="current-password" />
+                    <input type="password" id="loginPassword" class="input" placeholder="Enter your password"
+                        autocomplete="current-password" />
                 </div>
                 <button class="btn-primary" id="btnLogin">Sign In →</button>
                 <div class="msg" id="step1Msg"></div>
                 <div style="text-align:center; margin-top:14px;">
-                    <button type="button" id="btnShowSetPassword" style="background:none; border:none; color:var(--primary); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline;">First time? Set your password</button>
+                    <button type="button" id="btnShowSetPassword"
+                        style="background:none; border:none; color:var(--primary); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline;">First
+                        time? Set your password</button>
                 </div>
                 <!-- Set password -->
-                <div id="setPasswordPanel" style="display:none; margin-top:16px; padding:18px; border-radius:16px; background:var(--surface-2); border:1px solid var(--border);">
+                <div id="setPasswordPanel"
+                    style="display:none; margin-top:16px; padding:18px; border-radius:16px; background:var(--surface-2); border:1px solid var(--border);">
                     <p style="font-weight:700; font-size:14px; margin-bottom:4px;">Set Your Password</p>
-                    <p style="font-size:12px; color:var(--muted); margin-bottom:14px;">Enter your registered work email and choose a password.</p>
+                    <p style="font-size:12px; color:var(--muted); margin-bottom:14px;">Enter your registered work email
+                        and choose a password.</p>
                     <div class="field">
                         <label style="font-size:12px; font-weight:600;">Work Email</label>
                         <input type="email" id="setupEmail" class="input" placeholder="your.email@example.com" />
@@ -260,12 +573,15 @@
                     </div>
                     <div class="field">
                         <label style="font-size:12px; font-weight:600;">Confirm Password</label>
-                        <input type="password" id="setupPasswordConfirm" class="input" placeholder="Re-enter password" />
+                        <input type="password" id="setupPasswordConfirm" class="input"
+                            placeholder="Re-enter password" />
                     </div>
-                    <button class="btn-primary" id="btnSetPassword" style="background:linear-gradient(90deg,var(--primary),var(--primary-2));">Set Password</button>
+                    <button class="btn-primary" id="btnSetPassword"
+                        style="background:linear-gradient(90deg,var(--primary),var(--primary-2));">Set Password</button>
                     <div class="msg" id="setupMsg"></div>
                 </div>
-                <div id="loggedInInfo" style="display:none; margin-top:16px; padding:14px 16px; border-radius:14px; background:rgba(6,118,71,0.06); border:1px solid rgba(6,118,71,0.15);">
+                <div id="loggedInInfo"
+                    style="display:none; margin-top:16px; padding:14px 16px; border-radius:14px; background:rgba(6,118,71,0.06); border:1px solid rgba(6,118,71,0.15);">
                     <div style="font-weight:700; font-size:14px; color:var(--success);">Signed in as:</div>
                     <div id="loggedInName" style="font-size:16px; font-weight:800; margin-top:4px;"></div>
                     <div id="loggedInCode" style="font-size:12px; color:var(--muted);"></div>
@@ -274,7 +590,9 @@
                     <div class="shift-title" id="shiftBannerTitle"></div>
                     <div class="shift-detail" id="shiftBannerDetail"></div>
                 </div>
-                <button id="btnLogout" style="display:none; margin-top:12px; width:100%; padding:10px 14px; border-radius:12px; border:1px solid rgba(180,35,24,0.2); background:rgba(180,35,24,0.06); color:#b42318; font-size:13px; font-weight:700; cursor:pointer; text-align:center;">← Sign Out</button>
+                <button id="btnLogout"
+                    style="display:none; margin-top:12px; width:100%; padding:10px 14px; border-radius:12px; border:1px solid rgba(180,35,24,0.2); background:rgba(180,35,24,0.06); color:#b42318; font-size:13px; font-weight:700; cursor:pointer; text-align:center;">←
+                    Sign Out</button>
             </div>
         </div>
 
@@ -286,13 +604,17 @@
                 <div class="check-list">
                     <div class="check-item loading" id="uiCheckNetwork">
                         <div class="check-icon">⏳</div>
-                        <div><div class="check-title">Network / WiFi</div>
-                        <div class="check-detail" id="uiCheckNetworkDetail">Checking connection...</div></div>
+                        <div>
+                            <div class="check-title">Network / WiFi</div>
+                            <div class="check-detail" id="uiCheckNetworkDetail">Checking connection...</div>
+                        </div>
                     </div>
                     <div class="check-item loading" id="uiCheckGps">
                         <div class="check-icon">⏳</div>
-                        <div><div class="check-title">GPS / Location</div>
-                        <div class="check-detail" id="uiCheckGpsDetail">Acquiring position...</div></div>
+                        <div>
+                            <div class="check-title">GPS / Location</div>
+                            <div class="check-detail" id="uiCheckGpsDetail">Acquiring position...</div>
+                        </div>
                     </div>
                 </div>
                 <div class="stat-row" id="uiVerifyCards" style="display:none;">
@@ -310,11 +632,14 @@
                 <button class="btn-primary" id="btnStep2Next">Continue to QR Code →</button>
                 <div style="text-align:center; margin-top:10px;">
                     <button class="btn-ghost" id="btnStep2Back">← Back</button>
-                    <button class="btn-ghost" id="btnRetryVerify" style="display:none; margin-left:8px;">↻ Retry</button>
+                    <button class="btn-ghost" id="btnRetryVerify" style="display:none; margin-left:8px;">↻
+                        Retry</button>
                 </div>
                 <div class="field" style="margin-top:14px; padding-top:14px; border-top:1px dashed var(--border);">
-                    <label style="font-size:12px; color:var(--muted); font-weight:500;">Admin Bypass Key (testing only)</label>
-                    <input type="password" id="verifyBypassKey" class="input" placeholder="Enter key to skip verification" autocomplete="off" />
+                    <label style="font-size:12px; color:var(--muted); font-weight:500;">Admin Bypass Key (testing
+                        only)</label>
+                    <input type="password" id="verifyBypassKey" class="input"
+                        placeholder="Enter key to skip verification" autocomplete="off" />
                 </div>
                 <div class="msg" id="step2Msg"></div>
             </div>
@@ -327,11 +652,14 @@
                 <p class="card-subtitle">Enter the code shown on the attendance display screen.</p>
                 <div class="field">
                     <label>Attendance Code</label>
-                    <input type="text" id="userQrInput" class="input mono" placeholder="Paste or type the code here" autocomplete="off" />
+                    <input type="text" id="userQrInput" class="input mono" placeholder="Paste or type the code here"
+                        autocomplete="off" />
                 </div>
                 <div class="field" style="margin-top:10px;">
-                    <label style="font-size:12px; color:var(--muted); font-weight:500;">Admin Bypass Key (for testing only)</label>
-                    <input type="password" id="bypassKeyInput" class="input" placeholder="Enter bypass key" autocomplete="off" />
+                    <label style="font-size:12px; color:var(--muted); font-weight:500;">Admin Bypass Key (for testing
+                        only)</label>
+                    <input type="password" id="bypassKeyInput" class="input" placeholder="Enter bypass key"
+                        autocomplete="off" />
                 </div>
                 <button class="btn-success" id="btnSubmitCheckin">✓ Check In Now</button>
                 <div style="text-align:center; margin-top:10px;">
@@ -678,8 +1006,8 @@
                 subText = 'One or more validation layers did not pass';
             }
             qs('uiResultSub').innerHTML = subText +
-                (data.is_late ? `<div class="late-badge-result">⚠ LATE by ${data.late_minutes} minute${data.late_minutes !== 1 ? 's' : ''} (shift: ${data.scheduled_time})</div>` : 
-                 (data.scheduled_time ? '<div style="margin-top:8px;padding:8px 14px;border-radius:12px;background:rgba(6,118,71,0.08);color:#067647;font-size:14px;font-weight:700;display:inline-block;">✓ On Time</div>' : ''));
+                (data.is_late ? `<div class="late-badge-result">⚠ LATE by ${data.late_minutes} minute${data.late_minutes !== 1 ? 's' : ''} (shift: ${data.scheduled_time})</div>` :
+                    (data.scheduled_time ? '<div style="margin-top:8px;padding:8px 14px;border-radius:12px;background:rgba(6,118,71,0.08);color:#067647;font-size:14px;font-weight:700;display:inline-block;">✓ On Time</div>' : ''));
 
             b.className = 'result-banner ' + (data.overall_pass ? 'pass' : 'fail');
 
@@ -756,4 +1084,5 @@
         checkSession();
     </script>
 </body>
+
 </html>

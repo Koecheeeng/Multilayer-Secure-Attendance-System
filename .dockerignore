@@ -27,3 +27,10 @@ backend/migrations/
 Dockerfile
 docker-compose.yml
 .dockerignore
+
+# Secrets and environment variables
+.env
+backend/.env
+*.env
+.env.*
+

@@ -17,22 +17,19 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
-# Copy backend source and installed dependencies
-COPY --from=deps /app/backend/node_modules ./backend/node_modules
-COPY backend/ ./backend/
+# Copy backend source and installed dependencies as non-root user
+COPY --chown=appuser:appgroup --from=deps /app/backend/node_modules ./backend/node_modules
+COPY --chown=appuser:appgroup backend/ ./backend/
 
-# Copy frontend (served statically by Express)
-COPY frontend/ ./frontend/
-
-# Own everything by non-root user
-RUN chown -R appuser:appgroup /app
+# Copy frontend (served statically by Express) as non-root user
+COPY --chown=appuser:appgroup frontend/ ./frontend/
 
 USER appuser
 
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost:3000/ || exit 1
+  CMD wget -qO- http://localhost:${PORT:-3000}/ || exit 1
 
 WORKDIR /app/backend
 

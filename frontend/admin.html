@@ -1993,6 +1993,29 @@
       }
     }
 
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .form-grid.col-2 {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .qr-manager-layout {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .input,
+    .select,
+    .textarea {
+      font-size: 16px; /* Prevents auto-zoom on iOS */
+    }
+
     @media (max-width: 1200px) {
       .layout {
         grid-template-columns: 1fr;
@@ -2001,21 +2024,53 @@
       .sidebar {
         border-right: 0;
         border-bottom: 1px solid rgba(0, 0, 0, 0.10);
+        position: sticky;
+        top: 84px;
+        z-index: 15;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(8px);
+        padding: 8px 12px;
       }
 
       .nav-card {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        display: flex;
+        overflow-x: auto;
+        overflow-y: hidden;
+        gap: 8px;
+        padding-bottom: 4px;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .nav-card::-webkit-scrollbar {
+        height: 4px;
+      }
+
+      .nav-card::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .nav-card::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.15);
+        border-radius: 4px;
+      }
+
+      .nav-btn {
+        flex: 0 0 auto;
+        width: auto;
+        padding: 8px 14px;
+        border-radius: 10px;
       }
 
       .nav-label {
-        font-size: 15px;
+        font-size: 14px;
       }
 
       .grid-4,
       .role-grid,
       .verify-grid,
       .settings-grid,
-      .two-col {
+      .two-col,
+      .grid-2 {
         grid-template-columns: 1fr 1fr;
       }
 
@@ -2031,6 +2086,7 @@
 
       .hero {
         flex-direction: column;
+        gap: 12px;
       }
 
       .hero-right {
@@ -2042,42 +2098,140 @@
       }
     }
 
+    @media (max-width: 900px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+    }
+
     @media (max-width: 720px) {
       .topbar {
-        height: auto;
-        flex-direction: column;
-        align-items: flex-start;
+        height: 64px;
+        padding: 8px 16px;
+        position: sticky;
+        top: 0;
+        z-index: 20;
+      }
+
+      .brand-mark {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+      }
+
+      .brand-mark svg {
+        width: 24px;
+        height: 24px;
+      }
+
+      .brand-copy strong {
+        font-size: 16px;
+      }
+
+      .brand-copy span {
+        font-size: 11px;
       }
 
       .project-code {
-        font-size: 18px;
+        font-size: 14px;
+        font-weight: 700;
       }
 
-      .nav-card {
-        grid-template-columns: 1fr;
+      .topbar .ghost-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+        border-radius: 10px;
       }
 
-      .grid-4,
+      .sidebar {
+        top: 64px;
+      }
+
+      .grid-4 {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .stat-card {
+        padding: 12px;
+        min-height: 100px;
+      }
+
+      .stat-card .value {
+        font-size: 32px;
+      }
+
       .role-grid,
       .verify-grid,
       .settings-grid,
       .two-col,
-      .form-grid {
+      .form-grid,
+      .form-grid.col-2,
+      .qr-manager-layout {
         grid-template-columns: 1fr;
       }
 
+      .content {
+        padding: 12px;
+      }
+
+      .card {
+        padding: 14px;
+        margin-bottom: 12px;
+        border-radius: 18px;
+      }
+
+      .card-title-row h2 {
+        font-size: 20px;
+      }
+
+      .v-card {
+        padding: 12px;
+      }
+
+      .v-card-value {
+        font-size: 16px;
+      }
+
+      .v-profile-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .login-screen {
+        min-height: calc(100vh - 64px);
+        padding: 16px;
+      }
+
+      .login-card {
+        border-radius: 24px;
+        padding: 20px;
+      }
+
+      .login-title {
+        font-size: clamp(32px, 5vw, 48px);
+        margin-bottom: 12px;
+      }
+
       .login-form {
+        padding: 16px;
+        border-radius: 20px;
         width: 100%;
       }
 
       .login-btn {
         width: 100%;
+        min-height: 50px;
+        font-size: 24px;
+        border-radius: 14px;
       }
 
-      .v-cards-grid {
-        grid-template-columns: 1fr;
+      .confirm-card {
+        padding: 20px 24px;
+        border-radius: 20px;
       }
     }
+
 
     /* Confirmation modal */
     .confirm-overlay {
@@ -2302,43 +2456,25 @@
             </article>
           </div>
 
-          <div class="two-col">
-            <article class="card">
-              <div class="card-title-row">
-                <h2>Recent staff</h2>
-                <span>Latest profiles only</span>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Code</th>
-                      <th>Name</th>
-                      <th>Department</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody id="recentStaffBody"></tbody>
-                </table>
-              </div>
-            </article>
-
-            <article class="card">
-              <div class="card-title-row">
-                <h2>Quick notes</h2>
-                <span>What this dashboard does</span>
-              </div>
-              <div class="mini-card">
-                <h3>Admin responsibilities</h3>
-                <p class="muted">datas here.</p>
-              </div>
-              <div style="height:12px"></div>
-              <div class="mini-card">
-                <h3>Manager responsibilities</h3>
-                <p class="muted">accesses.</p>
-              </div>
-            </article>
-          </div>
+          <article class="card">
+            <div class="card-title-row">
+              <h2>Recent staff</h2>
+              <span>Latest profiles only</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="recentStaffBody"></tbody>
+              </table>
+            </div>
+          </article>
         </section>
 
         <section class="panel" data-section="verification">
@@ -2526,9 +2662,9 @@
               <h2>QR Session Manager</h2>
               <span>Generate QR codes for staff check-in</span>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start;">
+            <div class="qr-manager-layout">
               <div>
-                <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                <div class="form-grid col-2">
                   <div class="field">
                     <label for="attSessionId">Session ID</label>
                     <input id="attSessionId" class="input" type="text" placeholder="e.g. MORNING-SHIFT" />
@@ -2541,7 +2677,7 @@
                     </div>
                   </div>
                 </div>
-                <div class="form-grid" style="grid-template-columns: 1fr 1fr; margin-top: 12px;">
+                <div class="form-grid col-2" style="margin-top: 12px;">
                   <div class="field">
                     <label>Current Token</label>
                     <div id="attQrToken" style="font-family: monospace; font-size: 14px; color: var(--muted);">—</div>
@@ -2722,7 +2858,7 @@
 
           <div id="roleMessage" class="message" style="display:none; margin-bottom: 16px;"></div>
 
-          <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+          <div class="grid-2">
             <!-- Departments Management -->
             <div class="card">
               <div class="card-title-row">
@@ -2801,14 +2937,14 @@
 
           <div id="shiftMessage" class="message" style="display:none; margin-bottom: 16px;"></div>
 
-          <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+          <div class="grid-2">
             <!-- Recurring Weekly Schedule -->
             <div class="card">
               <div class="card-title-row">
                 <h2>Weekly Schedule</h2>
                 <span>Recurring shifts per day of week</span>
               </div>
-              <div class="form-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 16px;">
+              <div class="form-grid col-2" style="margin-bottom: 16px;">
                 <div class="field">
                   <label for="shiftStaffSelect">Staff</label>
                   <select id="shiftStaffSelect" class="select">
@@ -2860,7 +2996,7 @@
                 <h2>Date Overrides</h2>
                 <span>One-off shift assignments (overrides weekly)</span>
               </div>
-              <div class="form-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 16px;">
+              <div class="form-grid col-2" style="margin-bottom: 16px;">
                 <div class="field">
                   <label for="overrideStaffSelect">Staff</label>
                   <select id="overrideStaffSelect" class="select">
