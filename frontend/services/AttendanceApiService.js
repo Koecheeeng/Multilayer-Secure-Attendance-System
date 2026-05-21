@@ -8,7 +8,7 @@
  */
 class AttendanceApiService {
     constructor() {
-        this.baseUrl = '/api';
+        this.baseUrl = 'http://localhost:3000/api';
     }
 
     /**

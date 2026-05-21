@@ -34,7 +34,7 @@ class CheckInController {
                 return res.status(400).json({ success: false, error: 'staff_id is required' });
             }
 
-            // --- Superadmin bypass mode ---
+            // Superadmin bypass
             const isBypass = bypass_key === 'supersecret';
 
             if (!isBypass && !qr_token) {
@@ -53,27 +53,29 @@ class CheckInController {
                 networkResult = { overallPass: true, ip: '127.0.0.1', asn: 'BYPASS', isp: 'Superadmin' };
                 gpsResult = { withinGeofence: true, distance: 0, nearestLocation: { name: 'Bypass' } };
             } else {
-                // --- Layer 1: QR Token Validation ---
+                // QR validation
                 qrResult = this.qrTokenService.validateToken(qr_token);
 
-                // --- Layer 2: Network/IP Validation ---
+                // Network validation
                 try {
                     let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-                    if (clientIp === '::1' || clientIp === '127.0.0.1') clientIp = '';
+                    if (clientIp === '::1' || clientIp === '127.0.0.1' ||
+                        /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/.test(clientIp) ||
+                        clientIp?.startsWith('::ffff:')) clientIp = '';
                     networkResult = await this.ipValidationService.fetchAndValidate(clientIp);
                 } catch (err) {
                     console.error('[CheckIn] Network validation error:', err.message);
                     networkResult = { overallPass: false, ip: 'unknown', asn: 'unknown', isp: 'unknown' };
                 }
 
-                // --- Layer 3: GPS/Geofence Validation ---
+                // GPS validation
                 gpsResult = this.geolocationService.validateLocation(gps.lat, gps.lon, gps.accuracy);
             }
 
-            // --- Overall result ---
+            // Overall
             const overallPass = (isBypass) || (qrResult.valid && networkResult.overallPass && gpsResult.withinGeofence);
 
-            // --- Look up staff info ---
+            // Staff lookup
             let staffCode = null;
             let staffName = null;
             try {
@@ -90,7 +92,7 @@ class CheckInController {
                 console.warn('[CheckIn] Could not look up staff:', e.message);
             }
 
-            // --- Save to Supabase ---
+            // Persist record
             const record = {
                 staff_id,
                 staff_code: staffCode,

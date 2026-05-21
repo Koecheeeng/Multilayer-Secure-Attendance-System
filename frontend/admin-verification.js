@@ -9,7 +9,7 @@
 
   const API_BASE = '/api';
 
-  // ===== Models =====
+  // Models
   class NetworkResult {
     constructor(d) { Object.assign(this, d); }
     get overallPass() { return this.asnMatch && this.prefixMatch && this.countryMatch; }
@@ -21,7 +21,7 @@
     get isSuccess() { return this.error === null; }
   }
 
-  // ===== API =====
+  // API
   async function fetchNetwork() {
     const r = await fetch(`${API_BASE}/network/check`);
     if (!r.ok) throw new Error(`API error: ${r.status}`);
@@ -42,7 +42,7 @@
     return { result: new LocationResult(j.data), maxAccuracy: j.maxAccuracy, locations: j.locations };
   }
 
-  // ===== Helpers =====
+  // Helpers
   const $ = id => document.getElementById(id);
 
   function setCheck(id, status, detail) {
@@ -65,7 +65,7 @@
 
   function fmtDist(m) { return m < 1000 ? Math.round(m) + ' m' : (m / 1000).toFixed(2) + ' km'; }
 
-  // ===== Network Check =====
+  // Network check
   async function runNetworkCheck() {
     const btn = $('vBtnCheck');
     if (btn) btn.disabled = true;
@@ -133,7 +133,7 @@
     }
   }
 
-  // ===== Location Check =====
+  // Location check
   let leafletMap = null;
 
   function renderLocResult(result, maxAccuracy) {
@@ -263,7 +263,7 @@
     );
   }
 
-  // ===== Tab Switching =====
+  // Tab switching
   function switchVerifyTab(tabId) {
     document.querySelectorAll('.verify-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.vtab === tabId));
     document.querySelectorAll('.verify-tab-content').forEach(c => c.classList.toggle('active', c.id === 'vTab' + tabId.charAt(0).toUpperCase() + tabId.slice(1)));
@@ -272,7 +272,7 @@
     if (tabId === 'location' && leafletMap) setTimeout(() => leafletMap.invalidateSize(), 100);
   }
 
-  // ===== Init =====
+  // Init
   document.addEventListener('DOMContentLoaded', () => {
     // Tab buttons
     document.querySelectorAll('.verify-tab-btn').forEach(b => {

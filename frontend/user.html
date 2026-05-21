@@ -205,25 +205,53 @@
             <div class="step-pip" id="dot4"></div>
         </div>
 
-        <!-- STEP 1: Select Staff -->
+        <!-- Login -->
         <div class="step-panel active" id="step1">
             <div class="card">
-                <h2 class="card-title">Welcome</h2>
-                <p class="card-subtitle">Select your name to begin attendance check-in.</p>
+                <h2 class="card-title">Staff Login</h2>
+                <p class="card-subtitle">Sign in with your email to begin attendance check-in.</p>
                 <div class="field">
-                    <label>Your Name</label>
-                    <select id="userStaffSelect" class="select-input"><option value="">Loading...</option></select>
+                    <label>Email</label>
+                    <input type="email" id="loginEmail" class="input" placeholder="your.email@example.com" autocomplete="email" />
                 </div>
                 <div class="field">
-                    <label style="color: var(--muted); font-size: 12px;">Admin Override (optional)</label>
-                    <input type="password" id="userBypassKey" class="input" placeholder="Leave empty for normal check-in" style="font-size: 13px;" />
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" class="input" placeholder="Enter your password" autocomplete="current-password" />
                 </div>
-                <button class="btn-primary" id="btnStep1Next">Continue →</button>
+                <button class="btn-primary" id="btnLogin">Sign In →</button>
                 <div class="msg" id="step1Msg"></div>
+                <div style="text-align:center; margin-top:14px;">
+                    <button type="button" id="btnShowSetPassword" style="background:none; border:none; color:var(--primary); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline;">First time? Set your password</button>
+                </div>
+                <!-- Set password -->
+                <div id="setPasswordPanel" style="display:none; margin-top:16px; padding:18px; border-radius:16px; background:var(--surface-2); border:1px solid var(--border);">
+                    <p style="font-weight:700; font-size:14px; margin-bottom:4px;">Set Your Password</p>
+                    <p style="font-size:12px; color:var(--muted); margin-bottom:14px;">Enter your registered work email and choose a password.</p>
+                    <div class="field">
+                        <label style="font-size:12px; font-weight:600;">Work Email</label>
+                        <input type="email" id="setupEmail" class="input" placeholder="your.email@example.com" />
+                    </div>
+                    <div class="field">
+                        <label style="font-size:12px; font-weight:600;">New Password</label>
+                        <input type="password" id="setupPassword" class="input" placeholder="Min 6 characters" />
+                    </div>
+                    <div class="field">
+                        <label style="font-size:12px; font-weight:600;">Confirm Password</label>
+                        <input type="password" id="setupPasswordConfirm" class="input" placeholder="Re-enter password" />
+                    </div>
+                    <button class="btn-primary" id="btnSetPassword" style="background:linear-gradient(90deg,var(--primary),var(--primary-2));">Set Password</button>
+                    <div class="msg" id="setupMsg"></div>
+                </div>
+                <div id="loggedInInfo" style="display:none; margin-top:16px; padding:14px 16px; border-radius:14px; background:rgba(6,118,71,0.06); border:1px solid rgba(6,118,71,0.15);">
+                    <div style="font-weight:700; font-size:14px; color:var(--success);">Signed in as:</div>
+                    <div id="loggedInName" style="font-size:16px; font-weight:800; margin-top:4px;"></div>
+                    <div id="loggedInCode" style="font-size:12px; color:var(--muted);"></div>
+                </div>
+                <button id="btnLogout" style="display:none; margin-top:12px; width:100%; padding:10px 14px; border-radius:12px; border:1px solid rgba(180,35,24,0.2); background:rgba(180,35,24,0.06); color:#b42318; font-size:13px; font-weight:700; cursor:pointer; text-align:center;">← Sign Out</button>
             </div>
         </div>
 
-        <!-- STEP 2: Verification -->
+        <!-- Verification -->
         <div class="step-panel" id="step2">
             <div class="card">
                 <h2 class="card-title">Verification</h2>
@@ -249,18 +277,23 @@
                     <div class="stat-card">
                         <span class="stat-label">Distance</span>
                         <p class="stat-value" id="uiDistance">—</p>
-                        <p class="stat-detail" id="uiAccuracy"></p>
+                        <p class="stat-detail" id="uiDistanceDetail"></p>
                     </div>
                 </div>
-                <button class="btn-primary" id="btnStep2Next" disabled>Continue to QR Code →</button>
+                <button class="btn-primary" id="btnStep2Next">Continue to QR Code →</button>
                 <div style="text-align:center; margin-top:10px;">
                     <button class="btn-ghost" id="btnStep2Back">← Back</button>
+                    <button class="btn-ghost" id="btnRetryVerify" style="display:none; margin-left:8px;">↻ Retry</button>
+                </div>
+                <div class="field" style="margin-top:14px; padding-top:14px; border-top:1px dashed var(--border);">
+                    <label style="font-size:12px; color:var(--muted); font-weight:500;">Admin Bypass Key (testing only)</label>
+                    <input type="password" id="verifyBypassKey" class="input" placeholder="Enter key to skip verification" autocomplete="off" />
                 </div>
                 <div class="msg" id="step2Msg"></div>
             </div>
         </div>
 
-        <!-- STEP 3: QR Code -->
+        <!-- QR Code -->
         <div class="step-panel" id="step3">
             <div class="card">
                 <h2 class="card-title">Attendance Code</h2>
@@ -268,6 +301,10 @@
                 <div class="field">
                     <label>Attendance Code</label>
                     <input type="text" id="userQrInput" class="input mono" placeholder="Paste or type the code here" autocomplete="off" />
+                </div>
+                <div class="field" style="margin-top:10px;">
+                    <label style="font-size:12px; color:var(--muted); font-weight:500;">Admin Bypass Key (for testing only)</label>
+                    <input type="password" id="bypassKeyInput" class="input" placeholder="Enter bypass key" autocomplete="off" />
                 </div>
                 <button class="btn-success" id="btnSubmitCheckin">✓ Check In Now</button>
                 <div style="text-align:center; margin-top:10px;">
@@ -277,7 +314,7 @@
             </div>
         </div>
 
-        <!-- STEP 4: Result -->
+        <!-- Result -->
         <div class="step-panel" id="step4">
             <div class="result-banner" id="uiResultBanner">
                 <div class="r-icon" id="uiResultIcon"></div>
@@ -293,107 +330,289 @@
 
     <footer class="footer">Pustaka Dakwah Attendance System v1.0</footer>
 
-    <script>
-        const state = { staffId: null, staffName: null, network: null, gps: null, bypassKey: null };
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        const SUPABASE_URL = 'https://exbkjyumgylzhxpomfnx.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YmtqeXVtZ3lsemh4cG9tZm54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNTUxMDIsImV4cCI6MjA5MjkzMTEwMn0.ijaYx0V2qjvyjMdPA1V_4fovdEIkH3di5Tf-0m6GVxk';
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const state = { staffId: null, staffName: null, network: null, gps: null, accessToken: null };
+        const var_danger = '#b42318';
+
+        function qs(id) { return document.getElementById(id); }
+
         function goStep(n) {
             document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
-            document.getElementById('step' + n).classList.add('active');
+            qs('step' + n).classList.add('active');
             for (let i = 1; i <= 4; i++) {
-                const d = document.getElementById('dot' + i);
+                const d = qs('dot' + i);
                 d.className = 'step-pip' + (i < n ? ' done' : i === n ? ' active' : '');
             }
         }
-        async function loadStaff() {
-            try {
-                const res = await fetch('/api/staff/active');
-                const data = await res.json();
-                const sel = document.getElementById('userStaffSelect');
-                if (data.success && data.data.length) {
-                    sel.innerHTML = '<option value="">-- Select your name --</option>' +
-                        data.data.map(s => `<option value="${s.id}" data-name="${s.full_name}">${s.staff_code} — ${s.full_name}</option>`).join('');
-                } else { sel.innerHTML = '<option value="">No active staff</option>'; }
-            } catch (e) { console.error(e); }
-        }
-        document.getElementById('btnStep1Next').addEventListener('click', () => {
-            const sel = document.getElementById('userStaffSelect');
-            if (!sel.value) { document.getElementById('step1Msg').textContent = '⚠ Please select your name'; return; }
-            state.staffId = sel.value;
-            state.staffName = sel.options[sel.selectedIndex].dataset.name;
-            state.bypassKey = document.getElementById('userBypassKey').value.trim() || null;
-            document.getElementById('step1Msg').textContent = '';
-            if (state.bypassKey) {
-                // Bypass mode — skip verification, skip QR, go straight to submit
-                setCheckUI('uiCheckNetwork', 'pass', '✓', 'Superadmin bypass');
-                setCheckUI('uiCheckGps', 'pass', '✓', 'Superadmin bypass');
-                document.getElementById('uiVerifyCards').style.display = 'none';
-                goStep(2);
-                document.getElementById('btnStep2Next').disabled = false;
-                document.getElementById('step2Msg').textContent = '🔓 Admin override active — all checks bypassed';
-                document.getElementById('step2Msg').style.color = '#5b4bff';
+
+        // Login handler
+        qs('btnLogin').addEventListener('click', async () => {
+            const email = qs('loginEmail').value.trim();
+            const password = qs('loginPassword').value;
+            const msg = qs('step1Msg');
+            msg.textContent = '';
+
+            if (!email || !password) {
+                msg.textContent = '⚠ Email and password are required';
+                msg.style.color = var_danger;
                 return;
             }
-            goStep(2); runVerification();
+
+            const btn = qs('btnLogin');
+            btn.disabled = true;
+            btn.textContent = 'Signing in...';
+
+            try {
+                // Authenticate with Supabase
+                const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+                if (authError) throw new Error(authError.message);
+
+                state.accessToken = authData.session.access_token;
+
+                // Fetch staff profile from backend
+                const res = await fetch('/api/staff/me', {
+                    headers: { Authorization: `Bearer ${state.accessToken}` }
+                });
+                const profileData = await res.json();
+
+                if (!res.ok || !profileData.success) {
+                    throw new Error(profileData.error || 'Could not find your staff profile');
+                }
+
+                const staff = profileData.data;
+                state.staffId = staff.id;
+                state.staffName = staff.full_name;
+
+                // Show logged-in state
+                qs('loggedInInfo').style.display = 'block';
+                qs('btnLogout').style.display = 'block';
+                qs('loggedInName').textContent = staff.full_name;
+                qs('loggedInCode').textContent = `${staff.staff_code} — ${staff.department || ''} ${staff.position || ''}`.trim();
+
+                // Hide login form, show continue
+                qs('loginEmail').disabled = true;
+                qs('loginPassword').disabled = true;
+                btn.textContent = 'Continue →';
+                btn.disabled = false;
+
+                // Continue to verification
+                btn.onclick = () => { goStep(2); runVerification(); };
+                msg.textContent = '';
+
+            } catch (e) {
+                msg.textContent = '✗ ' + e.message;
+                msg.style.color = var_danger;
+                btn.disabled = false;
+                btn.textContent = 'Sign In →';
+            }
         });
+
+        // Logout
+        qs('btnLogout').addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            state.staffId = null; state.staffName = null; state.network = null; state.gps = null; state.accessToken = null;
+            qs('loginEmail').disabled = false; qs('loginEmail').value = '';
+            qs('loginPassword').disabled = false; qs('loginPassword').value = '';
+            qs('loggedInInfo').style.display = 'none';
+            qs('btnLogout').style.display = 'none';
+            qs('step1Msg').textContent = '';
+            const btn = qs('btnLogin');
+            btn.textContent = 'Sign In →';
+            btn.onclick = null;
+        });
+
+        // Enter key submits login
+        qs('loginPassword').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') qs('btnLogin').click();
+        });
+
+        // Set password (first time)
+        qs('btnShowSetPassword').addEventListener('click', () => {
+            const panel = qs('setPasswordPanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            const loginEmail = qs('loginEmail').value.trim();
+            if (loginEmail) qs('setupEmail').value = loginEmail;
+        });
+
+        qs('btnSetPassword').addEventListener('click', async () => {
+            const email = qs('setupEmail').value.trim();
+            const pw = qs('setupPassword').value;
+            const pwConfirm = qs('setupPasswordConfirm').value;
+            const msg = qs('setupMsg');
+            msg.textContent = '';
+
+            if (!email) { msg.textContent = '⚠ Enter your work email'; msg.style.color = var_danger; return; }
+            if (!pw || pw.length < 6) { msg.textContent = '⚠ Password must be at least 6 characters'; msg.style.color = var_danger; return; }
+            if (pw !== pwConfirm) { msg.textContent = '⚠ Passwords do not match'; msg.style.color = var_danger; return; }
+
+            const btn = qs('btnSetPassword');
+            btn.disabled = true;
+            btn.textContent = 'Setting password...';
+
+            try {
+                const res = await fetch('/api/staff/set-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password: pw })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.success) throw new Error(data.error || 'Failed to set password');
+
+                msg.textContent = '✓ Password set! You can now sign in above.';
+                msg.style.color = '#067647';
+
+                // Pre-fill the login form
+                qs('loginEmail').value = email;
+                qs('loginPassword').value = '';
+                qs('loginPassword').focus();
+
+                // Hide the setup panel after a moment
+                setTimeout(() => { qs('setPasswordPanel').style.display = 'none'; }, 3000);
+            } catch (e) {
+                msg.textContent = '✗ ' + e.message;
+                msg.style.color = var_danger;
+            }
+            btn.disabled = false;
+            btn.textContent = 'Set Password';
+        });
+
+        // Run network + GPS verification
         async function runVerification() {
-            const btn = document.getElementById('btnStep2Next'); btn.disabled = true;
+            const btn = qs('btnStep2Next');
+            const retryBtn = qs('btnRetryVerify');
+            btn.disabled = true;
+            if (retryBtn) retryBtn.disabled = true;
+
             setCheckUI('uiCheckNetwork', 'loading', '⏳', 'Checking network...');
             try {
-                const res = await fetch('/api/network/check'); const data = await res.json();
-                state.network = data.data; const pass = data.data.asnMatch && data.data.prefixMatch && data.data.countryMatch;
+                const res = await fetch('/api/network/check');
+                const data = await res.json();
+                state.network = data.data;
+                const pass = data.data.asnMatch && data.data.prefixMatch && data.data.countryMatch;
                 setCheckUI('uiCheckNetwork', pass ? 'pass' : 'fail', pass ? '✓' : '✗',
                     pass ? `${data.data.asn} — ${data.data.isp}` : `Not on Pustaka Dakwah network (${data.data.isp})`);
-                document.getElementById('uiIp').textContent = data.data.ip;
-                document.getElementById('uiIsp').textContent = data.data.isp || '';
-            } catch (e) { setCheckUI('uiCheckNetwork', 'fail', '✗', 'Network check failed'); state.network = { overallPass: false }; }
+                qs('uiIp').textContent = data.data.ip;
+                qs('uiIsp').textContent = data.data.isp || '';
+            } catch (e) {
+                setCheckUI('uiCheckNetwork', 'fail', '✗', 'Network check failed');
+                state.network = { overallPass: false };
+            }
+
             setCheckUI('uiCheckGps', 'loading', '⏳', 'Acquiring GPS...');
             try {
                 const pos = await new Promise((ok, no) => navigator.geolocation.getCurrentPosition(ok, no, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }));
                 const gps = { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy };
                 const res = await fetch('/api/location/validate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(gps) });
-                const data = await res.json(); state.gps = { ...gps, result: data.data };
-                const pass = data.data.withinGeofence;
+                const data = await res.json();
+                state.gps = { ...gps, result: data.data };
+
+                const within = data.data.withinGeofence;
+                const accurate = gps.accuracy <= data.maxAccuracy;
+                const pass = within && accurate;
+
                 const dist = data.data.distance < 1000 ? Math.round(data.data.distance) + 'm' : (data.data.distance / 1000).toFixed(1) + 'km';
-                setCheckUI('uiCheckGps', pass ? 'pass' : 'fail', pass ? '✓' : '✗',
-                    pass ? `Within range (${dist} away, ±${Math.round(gps.accuracy)}m)` : `Too far: ${dist} away`);
-                document.getElementById('uiDistance').textContent = dist;
-                document.getElementById('uiAccuracy').textContent = `±${Math.round(gps.accuracy)}m accuracy`;
-            } catch (e) { setCheckUI('uiCheckGps', 'fail', '✗', 'GPS access denied or failed'); state.gps = { lat: 0, lon: 0, accuracy: 9999 }; }
-            document.getElementById('uiVerifyCards').style.display = 'grid'; btn.disabled = false;
+
+                let detail = '';
+                if (pass) detail = `Within range (${dist} away, ±${Math.round(gps.accuracy)}m)`;
+                else if (!within) detail = `Too far: ${dist} away`;
+                else if (!accurate) detail = `Poor accuracy: ±${Math.round(gps.accuracy)}m (max ${data.maxAccuracy}m)`;
+
+                setCheckUI('uiCheckGps', pass ? 'pass' : (accurate ? 'fail' : 'warn'), pass ? '✓' : (accurate ? '✗' : '⚠'), detail);
+
+                qs('uiDistance').textContent = dist;
+                qs('uiAccuracy').textContent = `±${Math.round(gps.accuracy)}m accuracy`;
+
+                if (pass) btn.disabled = false;
+            } catch (e) {
+                setCheckUI('uiCheckGps', 'fail', '✗', 'GPS access denied or failed');
+                state.gps = { lat: 0, lon: 0, accuracy: 9999 };
+            }
+
+            qs('uiVerifyCards').style.display = 'grid';
+            if (retryBtn) retryBtn.disabled = false;
         }
+
         function setCheckUI(id, status, icon, detail) {
-            const el = document.getElementById(id); el.className = 'check-item ' + status;
+            const el = qs(id);
+            el.className = 'check-item ' + status;
             el.querySelector('.check-icon').textContent = icon;
-            document.getElementById(id + 'Detail').textContent = detail;
+            qs(id + 'Detail').textContent = detail;
         }
-        document.getElementById('btnStep2Next').addEventListener('click', () => goStep(3));
-        document.getElementById('btnStep2Back').addEventListener('click', () => goStep(1));
-        document.getElementById('btnStep3Back').addEventListener('click', () => goStep(2));
-        document.getElementById('btnSubmitCheckin').addEventListener('click', async () => {
-            const qr = document.getElementById('userQrInput').value.trim();
-            const msg = document.getElementById('step3Msg');
-            if (!state.bypassKey && !qr) { msg.textContent = '⚠ Enter the attendance code'; msg.style.color = var_danger; return; }
+
+        const btnRetryVerify = qs('btnRetryVerify');
+        if (btnRetryVerify) btnRetryVerify.addEventListener('click', () => runVerification());
+
+        // Bypass verification for testing
+        qs('verifyBypassKey').addEventListener('input', (e) => {
+            if (e.target.value.trim() === 'supersecret') {
+                // Show bypass success
+                setCheckUI('uiCheckNetwork', 'pass', '✓', 'Superadmin bypass');
+                setCheckUI('uiCheckGps', 'pass', '✓', 'Superadmin bypass');
+                qs('uiIp').textContent = '127.0.0.1';
+                qs('uiIsp').textContent = 'Superadmin';
+                qs('uiDistance').textContent = '0m';
+                qs('uiDistanceDetail').textContent = 'Bypass';
+                qs('uiVerifyCards').style.display = 'grid';
+                qs('btnStep2Next').disabled = false;
+                qs('btnStep2Next').textContent = 'Continue to QR Code →';
+                qs('btnStep2Next').onclick = () => goStep(3);
+                if (qs('btnRetryVerify')) qs('btnRetryVerify').style.display = 'none';
+            }
+        });
+
+        qs('btnStep2Next').addEventListener('click', () => goStep(3));
+        qs('btnStep2Back').addEventListener('click', () => goStep(1));
+        qs('btnStep3Back').addEventListener('click', () => goStep(2));
+
+        // Submit check-in
+        qs('btnSubmitCheckin').addEventListener('click', async () => {
+            const qr = qs('userQrInput').value.trim();
+            const bypass = qs('bypassKeyInput').value.trim();
+            const msg = qs('step3Msg');
+            if (!qr && !bypass) { msg.textContent = '⚠ Enter the attendance code or admin bypass key'; msg.style.color = var_danger; return; }
             msg.textContent = '⏳ Submitting...'; msg.style.color = '#5b4bff';
-            document.getElementById('btnSubmitCheckin').disabled = true;
+            qs('btnSubmitCheckin').disabled = true;
             try {
                 const gps = state.gps || { lat: 0, lon: 0, accuracy: 9999 };
-                const body = { staff_id: state.staffId, qr_token: qr || 'BYPASS', gps: { lat: gps.lat, lon: gps.lon, accuracy: gps.accuracy } };
-                if (state.bypassKey) body.bypass_key = state.bypassKey;
-                const res = await fetch('/api/attendance/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body) });
-                const data = await res.json(); if (!data.success) throw new Error(data.error);
+                const body = {
+                    staff_id: state.staffId,
+                    qr_token: qr,
+                    gps: { lat: gps.lat, lon: gps.lon, accuracy: gps.accuracy }
+                };
+                if (bypass) body.bypass_key = bypass;
+                const res = await fetch('/api/attendance/checkin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error);
                 showResult(data);
-            } catch (e) { msg.textContent = '✗ ' + e.message; msg.style.color = '#b42318'; document.getElementById('btnSubmitCheckin').disabled = false; }
+            } catch (e) {
+                msg.textContent = '✗ ' + e.message;
+                msg.style.color = var_danger;
+                qs('btnSubmitCheckin').disabled = false;
+            }
         });
-        const var_danger = '#b42318';
+
+        // Show result
         function showResult(data) {
             goStep(4);
-            const b = document.getElementById('uiResultBanner');
-            document.getElementById('uiResultIcon').textContent = data.overall_pass ? '✓' : '✗';
-            document.getElementById('uiResultTitle').textContent = data.overall_pass ? 'Check-In Successful!' : 'Check-In Failed';
-            document.getElementById('uiResultSub').textContent = data.overall_pass
-                ? `${data.staff.name} — ${new Date(data.checked_at).toLocaleTimeString('id-ID')}` : 'One or more validation layers did not pass';
+            const b = qs('uiResultBanner');
+            qs('uiResultIcon').textContent = data.overall_pass ? '✓' : '✗';
+            qs('uiResultTitle').textContent = data.overall_pass ? 'Check-In Successful!' : 'Check-In Failed';
+            qs('uiResultSub').textContent = data.overall_pass
+                ? `${data.staff.name} — ${new Date(data.checked_at).toLocaleTimeString('id-ID')}`
+                : 'One or more validation layers did not pass';
             b.className = 'result-banner ' + (data.overall_pass ? 'pass' : 'fail');
-            const c = document.getElementById('uiResultChecks');
+
+            const c = qs('uiResultChecks');
             const items = [
                 { l: 'QR Code', p: data.layers.qr.pass, d: data.layers.qr.reason },
                 { l: 'Network', p: data.layers.network.pass, d: data.layers.network.pass ? `${data.layers.network.ip} (${data.layers.network.asn})` : data.layers.network.isp },
@@ -403,14 +622,62 @@
                 <div class="check-icon">${i.p ? '✓' : '✗'}</div>
                 <div><div class="check-title">${i.l}</div><div class="check-detail">${i.d}</div></div></div>`).join('');
         }
-        document.getElementById('btnNewCheckin').addEventListener('click', () => {
-            state.staffId = null; state.staffName = null; state.network = null; state.gps = null;
-            document.getElementById('userQrInput').value = '';
-            document.getElementById('step3Msg').textContent = '';
-            document.getElementById('btnSubmitCheckin').disabled = false;
+
+        // Reset for new check-in
+        qs('btnNewCheckin').addEventListener('click', async () => {
+            await supabase.auth.signOut();
+            state.staffId = null; state.staffName = null; state.network = null; state.gps = null; state.accessToken = null;
+            qs('userQrInput').value = '';
+            qs('bypassKeyInput').value = '';
+            qs('step3Msg').textContent = '';
+            qs('btnSubmitCheckin').disabled = false;
+            qs('loginEmail').disabled = false; qs('loginEmail').value = '';
+            qs('loginPassword').disabled = false; qs('loginPassword').value = '';
+            qs('loggedInInfo').style.display = 'none';
+            qs('btnLogout').style.display = 'none';
+            const btn = qs('btnLogin');
+            btn.textContent = 'Sign In →';
+            btn.onclick = null;
             goStep(1);
         });
-        loadStaff();
+
+        // Restore existing session on load
+        async function checkSession() {
+            const { data } = await supabase.auth.getSession();
+            if (!data?.session) return;
+
+            try {
+                state.accessToken = data.session.access_token;
+                const res = await fetch('/api/staff/me', {
+                    headers: { Authorization: `Bearer ${state.accessToken}` }
+                });
+                const profileData = await res.json();
+                if (!res.ok || !profileData.success) {
+                    await supabase.auth.signOut();
+                    return;
+                }
+
+                const staff = profileData.data;
+                state.staffId = staff.id;
+                state.staffName = staff.full_name;
+
+                qs('loggedInInfo').style.display = 'block';
+                qs('btnLogout').style.display = 'block';
+                qs('loggedInName').textContent = staff.full_name;
+                qs('loggedInCode').textContent = `${staff.staff_code} — ${staff.department || ''} ${staff.position || ''}`.trim();
+                qs('loginEmail').disabled = true;
+                qs('loginEmail').value = data.session.user.email;
+                qs('loginPassword').disabled = true;
+                qs('loginPassword').value = '••••••••';
+
+                const btn = qs('btnLogin');
+                btn.textContent = 'Continue →';
+                btn.onclick = () => { goStep(2); runVerification(); };
+            } catch (e) {
+                console.error('Session check failed:', e);
+            }
+        }
+        checkSession();
     </script>
 </body>
 </html>

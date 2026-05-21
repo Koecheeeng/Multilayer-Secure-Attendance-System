@@ -1,0 +1,29 @@
+# Dependencies (installed inside container)
+backend/node_modules
+node_modules
+
+# Git
+.git
+.gitignore
+
+# IDE / OS
+.vscode
+.idea
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
+
+# Documentation
+*.md
+DATABASE_SETUP.md
+README.md
+
+# Database scripts (not needed at runtime)
+database/
+backend/migrations/
+
+# Docker files themselves
+Dockerfile
+docker-compose.yml
+.dockerignore

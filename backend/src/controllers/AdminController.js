@@ -54,6 +54,45 @@ class AdminController {
         });
       }
 
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          error: 'email is required for staff login'
+        });
+      }
+
+      const trimmedEmail = String(email).trim().toLowerCase();
+
+      // 1. Create Supabase Auth user (no invite email, no password yet)
+      //    Staff will set their own password via "Set Password" on user.html
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: trimmedEmail,
+        email_confirm: true,
+        user_metadata: { full_name: String(full_name).trim(), role: 'staff' }
+      });
+
+      if (authError) {
+        if (authError.message?.includes('already been registered') || authError.message?.includes('already exists')) {
+          return res.status(409).json({
+            success: false,
+            error: 'A user with this email already exists'
+          });
+        }
+        throw authError;
+      }
+
+      const authUserId = authData.user.id;
+
+      // 2. Create profiles row (for auth middleware compatibility)
+      await supabase
+        .from('profiles')
+        .upsert({
+          id: authUserId,
+          full_name: String(full_name).trim(),
+          role: 'staff'
+        }, { onConflict: 'id' });
+
+      // 3. Create staff_profiles row
       const code =
         (staff_code && String(staff_code).trim()) ||
         `STF-${Date.now().toString(36).toUpperCase()}`;
@@ -63,9 +102,10 @@ class AdminController {
         full_name: String(full_name).trim(),
         department: department ? String(department).trim() : null,
         position: position ? String(position).trim() : null,
-        email: email ? String(email).trim() : null,
+        email: trimmedEmail,
         phone: phone ? String(phone).trim() : null,
         status: status === 'inactive' ? 'inactive' : 'active',
+        auth_user_id: authUserId,
         created_by: req.authUser.id
       };
 
@@ -76,12 +116,15 @@ class AdminController {
         .single();
 
       if (error) {
+        // Rollback: delete the auth user if staff profile creation fails
+        await supabase.auth.admin.deleteUser(authUserId);
         throw error;
       }
 
       return res.status(201).json({
         success: true,
-        data
+        data,
+        message: `Account created for ${trimmedEmail}. Staff must set their password on the check-in page.`
       });
     } catch (err) {
       console.error('Create staff error:', err);

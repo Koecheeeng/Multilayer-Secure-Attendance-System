@@ -10,7 +10,7 @@
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
     const SUPABASE_URL = 'https://exbkjyumgylzhxpomfnx.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_TY6CkWK_mmuixh55B7ZIQQ_YXI9UavD';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YmtqeXVtZ3lsemh4cG9tZm54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczNTUxMDIsImV4cCI6MjA5MjkzMTEwMn0.ijaYx0V2qjvyjMdPA1V_4fovdEIkH3di5Tf-0m6GVxk';
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const API_BASE = '/api/admin';
@@ -92,16 +92,22 @@
         Authorization: `Bearer ${token}`
       };
 
-      const response = await fetch(`${API_BASE}${path}`, {
-        ...options,
-        headers
-      });
+      let response;
+      try {
+        response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+      } catch (fetchErr) {
+        console.warn('[API] Network error:', fetchErr.message);
+        throw new Error('Network error — please check your connection');
+      }
 
       const payload = await response.json().catch(() => ({}));
 
-      // If token expired/invalid, redirect to login
+      if (response.status === 503) {
+        throw new Error('Server busy — please retry in a moment');
+      }
+
       if (response.status === 401) {
-        console.warn('[API] 401 Unauthorized — redirecting to login');
+        console.warn('[API] 401 Unauthorized');
         try { await supabase.auth.signOut(); } catch (_) {}
         if (window.refreshInterval) clearInterval(window.refreshInterval);
         window.location.href = '/login.html';
@@ -403,7 +409,7 @@
         await loadAttendanceHistory();
       }
     }
-    // ===== Attendance Tab Logic =====
+    // Attendance tab
 
     let qrInterval = null;
     let qrSessionActive = false;
@@ -511,7 +517,7 @@
           } catch (err) {
               console.error('Erreur lors de la boucle live:', err);
           }
-      }, 2000);
+      }, 10000);
     }
 
     function stopQrSession() {
@@ -524,6 +530,8 @@
       if (img) img.src = '';
       qs('attQrToken').textContent = '—';
       qs('attQrCountdown').textContent = '—';
+      const fullTokenInput = qs('attQrFullToken');
+      if (fullTokenInput) fullTokenInput.value = '';
       setMessage(qs('attQrMessage'), 'QR session stopped.');
     }
 
@@ -537,6 +545,8 @@
         const img = qs('attQrImage');
         if (img) img.src = data.qrDataUrl;
         qs('attQrToken').textContent = data.token.substring(0, 12) + '…';
+        const fullTokenInput = qs('attQrFullToken');
+        if (fullTokenInput) fullTokenInput.value = data.token;
 
         const lifetime = data.lifetimeMs / 1000;
         let remaining = lifetime;
@@ -652,7 +662,7 @@
         await refreshAll();
         setSection('overview');
 
-        // Setup auto-refresh every 10 seconds
+        // Auto-refresh every 60 seconds
         if (window.refreshInterval) clearInterval(window.refreshInterval);
         window.refreshInterval = setInterval(async () => {
           if (qs('dashboard').classList.contains('hidden')) return;
@@ -661,7 +671,7 @@
           } catch (err) {
             console.error('Auto-refresh error:', err);
           }
-        }, 10000);
+        }, 60000);
 
       } catch (err) {
         console.error('[loadSession] Error during refresh:', err);
@@ -1536,7 +1546,7 @@
       transition: transform .15s ease, box-shadow .15s ease;
     }
 
-    /* ===== Verification Panel Styles ===== */
+    /* Verification panel */
     .verify-tabs {
       display: flex;
       gap: 4px;
@@ -1917,7 +1927,7 @@
       }
     }
 
-    /* ===== Custom Confirmation Modal ===== */
+    /* Confirmation modal */
     .confirm-overlay {
       position: fixed;
       inset: 0;
@@ -2350,7 +2360,7 @@
           </div>
         </section>
 
-        <!-- ===== ATTENDANCE PANEL ===== -->
+        <!-- Attendance -->
         <section class="panel" data-section="attendance">
           <div class="hero">
             <div>
