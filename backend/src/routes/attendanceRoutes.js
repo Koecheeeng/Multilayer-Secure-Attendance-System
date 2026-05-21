@@ -174,6 +174,57 @@ router.post('/staff/set-password', async (req, res) => {
     }
 });
 
+// Staff shift lookup — returns today's shift for the authenticated staff member
+router.get('/staff/my-shift', requireAuth, async (req, res) => {
+    try {
+        const supabase = require('../config/supabase');
+        const AdminController = require('../controllers/AdminController');
+        const userEmail = req.authUser.email;
+
+        // Find staff by email
+        const { data: staff } = await supabase
+            .from('staff_profiles')
+            .select('id')
+            .eq('email', userEmail)
+            .eq('status', 'active')
+            .single();
+
+        if (!staff) {
+            return res.json({ success: true, data: null, message: 'No staff profile found' });
+        }
+
+        const now = new Date();
+        const shift = await AdminController.getStaffShiftForDate(staff.id, now);
+
+        if (!shift) {
+            return res.json({ success: true, data: null, message: 'No shift assigned for today' });
+        }
+
+        // Calculate if currently late (5 min grace) — compare in UTC+7
+        const [h, m] = shift.start_time.split(':').map(Number);
+        const nowUtc7Hours = (now.getUTCHours() + 7) % 24;
+        const nowUtc7Minutes = now.getUTCMinutes();
+        const nowTotalMin = nowUtc7Hours * 60 + nowUtc7Minutes;
+        const shiftTotalMin = h * 60 + m;
+        const diffMin = nowTotalMin - shiftTotalMin;
+        const isLate = diffMin > 5;
+        const lateMinutes = isLate ? diffMin : 0;
+
+        res.json({
+            success: true,
+            data: {
+                ...shift,
+                is_late: isLate,
+                late_minutes: lateMinutes,
+                current_time: now.toISOString()
+            }
+        });
+    } catch (err) {
+        console.error('Staff shift lookup error:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 router.get('/network/check', (req, res) => attendanceController.checkNetwork(req, res));
 router.post('/location/validate', (req, res) => attendanceController.checkLocation(req, res));
 

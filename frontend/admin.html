@@ -77,12 +77,17 @@
       });
     }
 
-    async function getSessionToken() {
+    async function getSessionToken(forceRefresh = false) {
+      if (forceRefresh) {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error || !data?.session) return null;
+        return data.session.access_token;
+      }
       const { data } = await supabase.auth.getSession();
       return data?.session?.access_token || null;
     }
 
-    async function api(path, options = {}) {
+    async function api(path, options = {}, _retried = false) {
       const token = await getSessionToken();
       if (!token) throw new Error('You are not signed in');
 
@@ -107,7 +112,15 @@
       }
 
       if (response.status === 401) {
-        console.warn('[API] 401 Unauthorized');
+        // Try refreshing the token once before signing out
+        if (!_retried) {
+          console.warn('[API] 401 — attempting token refresh...');
+          const freshToken = await getSessionToken(true);
+          if (freshToken) {
+            return api(path, options, true);
+          }
+        }
+        console.warn('[API] 401 — session expired, signing out');
         try { await supabase.auth.signOut(); } catch (_) {}
         if (window.refreshInterval) clearInterval(window.refreshInterval);
         window.location.href = '/login.html';
@@ -456,6 +469,9 @@
           const badge = (pass) => pass
             ? '<span class="badge badge-green">PASS</span>'
             : '<span class="badge badge-gray">FAIL</span>';
+          const lateBadge = r.is_late
+            ? `<span class="badge" style="background:rgba(180,35,24,0.10);color:#b42318;">LATE (${r.late_minutes}m)</span>`
+            : (r.scheduled_time ? '<span class="badge badge-green">ON TIME</span>' : '<span class="badge badge-gray">—</span>');
           return `<tr>
             <td>${escapeHtml(time)}</td>
             <td>${escapeHtml(r.staff_code || '—')}</td>
@@ -464,6 +480,7 @@
             <td>${badge(r.gps_pass)}</td>
             <td>${badge(r.qr_pass)}</td>
             <td>${badge(r.overall_pass)}</td>
+            <td>${lateBadge}</td>
           </tr>`;
         }).join('');
       } catch (err) {
@@ -566,6 +583,158 @@
     }
     
 
+
+    // ── Shift Management ──
+
+    const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    async function loadShiftsData() {
+      try {
+        const [schedRes, overRes] = await Promise.all([
+          api('/shifts/schedules'),
+          api('/shifts/overrides')
+        ]);
+
+        renderShiftSchedules(schedRes.data || []);
+        renderShiftOverrides(overRes.data || []);
+        updateShiftStaffDropdowns();
+      } catch (err) {
+        console.error('Load shifts error:', err);
+        setMessage(qs('shiftMessage'), 'Failed to load shifts: ' + err.message, false);
+      }
+    }
+
+    function updateShiftStaffDropdowns() {
+      const options = '<option value="">Select Staff</option>' +
+        state.staff.map(s => `<option value="${s.id}">${escapeHtml(s.staff_code)} — ${escapeHtml(s.full_name)}</option>`).join('');
+      const el1 = qs('shiftStaffSelect');
+      const el2 = qs('overrideStaffSelect');
+      if (el1) el1.innerHTML = options;
+      if (el2) el2.innerHTML = options;
+    }
+
+    function renderShiftSchedules(data) {
+      const tbody = qs('shiftScheduleBody');
+      if (!tbody) return;
+
+      if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="muted">No recurring shifts assigned.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.map(row => {
+        const staffName = row.staff_profiles ? `${escapeHtml(row.staff_profiles.staff_code)} — ${escapeHtml(row.staff_profiles.full_name)}` : '—';
+        return `<tr>
+          <td>${staffName}</td>
+          <td>${DAY_NAMES[row.day_of_week] || row.day_of_week}</td>
+          <td>${escapeHtml(row.start_time)}</td>
+          <td>${escapeHtml(row.end_time || '—')}</td>
+          <td><button class="icon-btn danger" data-delete-shift="${row.id}">Delete</button></td>
+        </tr>`;
+      }).join('');
+
+      tbody.addEventListener('click', handleDeleteShift);
+    }
+
+    function renderShiftOverrides(data) {
+      const tbody = qs('shiftOverrideBody');
+      if (!tbody) return;
+
+      if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="muted">No date overrides.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.map(row => {
+        const staffName = row.staff_profiles ? `${escapeHtml(row.staff_profiles.staff_code)} — ${escapeHtml(row.staff_profiles.full_name)}` : '—';
+        return `<tr>
+          <td>${staffName}</td>
+          <td>${escapeHtml(row.shift_date)}</td>
+          <td>${escapeHtml(row.start_time)}</td>
+          <td>${escapeHtml(row.end_time || '—')}</td>
+          <td>${escapeHtml(row.notes || '—')}</td>
+          <td><button class="icon-btn danger" data-delete-override="${row.id}">Delete</button></td>
+        </tr>`;
+      }).join('');
+
+      tbody.addEventListener('click', handleDeleteOverride);
+    }
+
+    async function createShiftSchedule() {
+      const staff_id = qs('shiftStaffSelect').value;
+      const day_of_week = qs('shiftDaySelect').value;
+      const start_time = qs('shiftStartTime').value;
+      const end_time = qs('shiftEndTime').value;
+
+      if (!staff_id || !start_time) {
+        setMessage(qs('shiftMessage'), 'Staff and start time are required', false);
+        return;
+      }
+
+      try {
+        await api('/shifts/schedules', {
+          method: 'POST',
+          body: JSON.stringify({ staff_id, day_of_week: parseInt(day_of_week), start_time, end_time: end_time || null })
+        });
+        setMessage(qs('shiftMessage'), 'Weekly shift assigned successfully');
+        await loadShiftsData();
+      } catch (err) {
+        setMessage(qs('shiftMessage'), 'Error: ' + err.message, false);
+      }
+    }
+
+    async function createShiftOverride() {
+      const staff_id = qs('overrideStaffSelect').value;
+      const shift_date = qs('overrideDate').value;
+      const start_time = qs('overrideStartTime').value;
+      const end_time = qs('overrideEndTime').value;
+      const notes = qs('overrideNotes').value.trim();
+
+      if (!staff_id || !shift_date || !start_time) {
+        setMessage(qs('shiftMessage'), 'Staff, date, and start time are required', false);
+        return;
+      }
+
+      try {
+        await api('/shifts/overrides', {
+          method: 'POST',
+          body: JSON.stringify({ staff_id, shift_date, start_time, end_time: end_time || null, notes: notes || null })
+        });
+        setMessage(qs('shiftMessage'), 'Date override assigned successfully');
+        qs('overrideNotes').value = '';
+        await loadShiftsData();
+      } catch (err) {
+        setMessage(qs('shiftMessage'), 'Error: ' + err.message, false);
+      }
+    }
+
+    async function handleDeleteShift(e) {
+      const btn = e.target.closest('[data-delete-shift]');
+      if (!btn) return;
+      const confirmed = await showConfirmModal('Delete this shift schedule?');
+      if (!confirmed) return;
+      try {
+        await api(`/shifts/schedules/${btn.dataset.deleteShift}`, { method: 'DELETE' });
+        setMessage(qs('shiftMessage'), 'Shift deleted');
+        await loadShiftsData();
+      } catch (err) {
+        setMessage(qs('shiftMessage'), 'Error: ' + err.message, false);
+      }
+    }
+
+    async function handleDeleteOverride(e) {
+      const btn = e.target.closest('[data-delete-override]');
+      if (!btn) return;
+      const confirmed = await showConfirmModal('Delete this shift override?');
+      if (!confirmed) return;
+      try {
+        await api(`/shifts/overrides/${btn.dataset.deleteOverride}`, { method: 'DELETE' });
+        setMessage(qs('shiftMessage'), 'Override deleted');
+        await loadShiftsData();
+      } catch (err) {
+        setMessage(qs('shiftMessage'), 'Error: ' + err.message, false);
+      }
+    }
 
     async function signOut() {
       console.log('[SIGNOUT] Sign out triggered');
@@ -693,8 +862,7 @@
           'rolePill', 'adminOnlyWrap', 'overviewTotalStaff', 'overviewActiveStaff', 'overviewInactiveStaff', 'overviewRole',
           'recentStaffBody', 'staffTableBody', 'absenceStaffSelect', 'roleCards', 'staffMessage',
           'staffFormTitle', 'staffSubmit', 'staffCancel', 'staffId', 'staffCode', 'staffName', 'staffDepartment', 'staffPosition',
-          'staffEmail', 'staffPhone', 'staffStatus', 'settingsVenueName', 'settingsWifi', 'settingsRadius', 'settingsLatitude',
-          'settingsLongitude', 'settingsApiStatus',
+          'staffEmail', 'staffPhone', 'staffStatus',
           'deptNameInput', 'btnCreateDept', 'deptList',
           'posDeptSelect', 'posNameInput', 'btnCreatePos', 'posList',
           'roleMessage'
@@ -731,33 +899,17 @@
           });
         });
 
-        // Simple local settings
-        const settingsEl = qs('settingsVenueName');
-        if (settingsEl) {
-          settingsEl.value = localStorage.getItem('venueName') || 'KANOPI';
-          qs('settingsWifi').value = localStorage.getItem('wifiName') || 'Office_Wifi';
-          qs('settingsRadius').value = localStorage.getItem('geoRadius') || '100';
-          qs('settingsLatitude').value = localStorage.getItem('geoLat') || '0';
-          qs('settingsLongitude').value = localStorage.getItem('geoLng') || '0';
-        }
+        // Shift Management
+        bind('btnCreateShift', 'click', createShiftSchedule);
+        bind('btnCreateOverride', 'click', createShiftOverride);
 
-        bind('btnSaveSettings', 'click', () => {
-          localStorage.setItem('venueName', qs('settingsVenueName').value.trim());
-          localStorage.setItem('wifiName', qs('settingsWifi').value.trim());
-          localStorage.setItem('geoRadius', qs('settingsRadius').value.trim());
-          localStorage.setItem('geoLat', qs('settingsLatitude').value.trim());
-          localStorage.setItem('geoLng', qs('settingsLongitude').value.trim());
-          setMessage(qs('settingsMessage'), 'Settings saved locally in the browser for now.');
-        });
-
-        bind('btnResetSettings', 'click', () => {
-          ['venueName', 'wifiName', 'geoRadius', 'geoLat', 'geoLng'].forEach(key => localStorage.removeItem(key));
-          qs('settingsVenueName').value = 'KANOPI';
-          qs('settingsWifi').value = 'Office_Wifi';
-          qs('settingsRadius').value = '100';
-          qs('settingsLatitude').value = '0';
-          qs('settingsLongitude').value = '0';
-          setMessage(qs('settingsMessage'), 'Settings reset.');
+        // Load shifts when switching to shifts tab
+        document.querySelectorAll('[data-nav]').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (btn.dataset.nav === 'shifts') {
+              await loadShiftsData();
+            }
+          });
         });
 
         console.log('[INIT] Event listeners attached, loading session...');
@@ -2104,14 +2256,13 @@
             </svg>
             <span class="nav-label">Roles</span>
           </button>
-          <button class="nav-btn" data-nav="settings">
+          <button class="nav-btn" data-nav="shifts">
             <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path
-                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
             </svg>
-            <span class="nav-label">Settings</span>
+            <span class="nav-label">Shifts</span>
           </button>
         </nav>
       </aside>
@@ -2459,6 +2610,7 @@
                     <th>GPS</th>
                     <th>QR</th>
                     <th>Overall</th>
+                    <th>Punctuality</th>
                   </tr>
                 </thead>
                 <tbody id="attHistoryBody">
@@ -2639,54 +2791,116 @@
           </div>
         </section>
 
-        <section class="panel" data-section="settings">
+        <section class="panel" data-section="shifts">
           <div class="hero">
             <div>
-              <h1>Settings</h1>
-              <p>still not setted up.</p>
+              <h1>Shift Management</h1>
+              <p>Assign recurring weekly schedules or one-off date shifts to staff. Late detection uses a 5-minute grace period.</p>
             </div>
           </div>
 
-          <div class="card">
-            <div class="settings-grid">
-              <div class="field">
-                <label for="settingsVenueName">Venue name</label>
-                <input id="settingsVenueName" class="input" type="text" />
+          <div id="shiftMessage" class="message" style="display:none; margin-bottom: 16px;"></div>
+
+          <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+            <!-- Recurring Weekly Schedule -->
+            <div class="card">
+              <div class="card-title-row">
+                <h2>Weekly Schedule</h2>
+                <span>Recurring shifts per day of week</span>
               </div>
-              <div class="field">
-                <label for="settingsWifi">Approved Wi‑Fi</label>
-                <input id="settingsWifi" class="input" type="text" />
-              </div>
-              <div class="field">
-                <label for="settingsRadius">Geofence radius (meters)</label>
-                <input id="settingsRadius" class="input" type="number" min="1" step="1" />
-              </div>
-              <div class="field">
-                <label for="settingsLatitude">Latitude</label>
-                <input id="settingsLatitude" class="input" type="number" step="any" />
-              </div>
-              <div class="field">
-                <label for="settingsLongitude">Longitude</label>
-                <input id="settingsLongitude" class="input" type="number" step="any" />
-              </div>
-              <div class="field">
-                <label>Actions</label>
-                <div class="inline-actions">
-                  <button id="btnSaveSettings" class="primary-btn" type="button">Save settings</button>
-                  <button id="btnResetSettings" class="ghost-btn" type="button">Reset</button>
+              <div class="form-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 16px;">
+                <div class="field">
+                  <label for="shiftStaffSelect">Staff</label>
+                  <select id="shiftStaffSelect" class="select">
+                    <option value="">Select Staff</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="shiftDaySelect">Day</label>
+                  <select id="shiftDaySelect" class="select">
+                    <option value="0">Sunday</option>
+                    <option value="1">Monday</option>
+                    <option value="2">Tuesday</option>
+                    <option value="3">Wednesday</option>
+                    <option value="4">Thursday</option>
+                    <option value="5">Friday</option>
+                    <option value="6">Saturday</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="shiftStartTime">Start Time</label>
+                  <input id="shiftStartTime" class="input" type="time" />
+                </div>
+                <div class="field">
+                  <label for="shiftEndTime">End Time (optional)</label>
+                  <input id="shiftEndTime" class="input" type="time" />
                 </div>
               </div>
-            </div>
-            <div id="settingsMessage" class="message" style="display:none;"></div>
-          </div>
+              <button id="btnCreateShift" class="primary-btn" type="button" style="width: auto;">Assign Shift</button>
 
-          <div class="card">
-            <div class="card-title-row">
-              <h2>Integration checklist</h2>
-              <span>Later backend wiring</span>
+              <div class="table-wrap" style="margin-top: 16px;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Staff</th>
+                      <th>Day</th>
+                      <th>Start</th>
+                      <th>End</th>
+                      <th style="width:80px;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="shiftScheduleBody"></tbody>
+                </table>
+              </div>
             </div>
-            <div class="mini-card">
-              <p class="muted">later we do this.</p>
+
+            <!-- One-off Date Overrides -->
+            <div class="card">
+              <div class="card-title-row">
+                <h2>Date Overrides</h2>
+                <span>One-off shift assignments (overrides weekly)</span>
+              </div>
+              <div class="form-grid" style="grid-template-columns: 1fr 1fr; margin-bottom: 16px;">
+                <div class="field">
+                  <label for="overrideStaffSelect">Staff</label>
+                  <select id="overrideStaffSelect" class="select">
+                    <option value="">Select Staff</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="overrideDate">Date</label>
+                  <input id="overrideDate" class="input" type="date" />
+                </div>
+                <div class="field">
+                  <label for="overrideStartTime">Start Time</label>
+                  <input id="overrideStartTime" class="input" type="time" />
+                </div>
+                <div class="field">
+                  <label for="overrideEndTime">End Time (optional)</label>
+                  <input id="overrideEndTime" class="input" type="time" />
+                </div>
+                <div class="field" style="grid-column: 1 / -1;">
+                  <label for="overrideNotes">Notes (optional)</label>
+                  <input id="overrideNotes" class="input" type="text" placeholder="e.g. Cover shift, special event" />
+                </div>
+              </div>
+              <button id="btnCreateOverride" class="primary-btn" type="button" style="width: auto;">Assign Override</button>
+
+              <div class="table-wrap" style="margin-top: 16px;">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Staff</th>
+                      <th>Date</th>
+                      <th>Start</th>
+                      <th>End</th>
+                      <th>Notes</th>
+                      <th style="width:80px;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="shiftOverrideBody"></tbody>
+                </table>
+              </div>
             </div>
           </div>
         </section>

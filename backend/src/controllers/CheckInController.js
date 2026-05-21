@@ -9,6 +9,7 @@ const supabase = require('../config/supabase');
 const IpValidationService = require('../services/IpValidationService');
 const GeolocationService = require('../services/GeolocationService');
 const QrTokenService = require('../services/QrTokenService');
+const AdminController = require('./AdminController');
 
 // Shared singleton so tokens generated via /api/qr/generate are accessible here
 let _sharedQrService = null;
@@ -92,6 +93,31 @@ class CheckInController {
                 console.warn('[CheckIn] Could not look up staff:', e.message);
             }
 
+            // Late detection based on shift schedule
+            let isLate = false;
+            let lateMinutes = 0;
+            let scheduledTime = null;
+            try {
+                const now = new Date();
+                const shift = await AdminController.getStaffShiftForDate(staff_id, now);
+                if (shift) {
+                    scheduledTime = shift.start_time;
+                    const [h, m] = shift.start_time.split(':').map(Number);
+                    // Compare in UTC+7 (Asia/Jakarta) since shift times are local
+                    const nowUtc7Hours = (now.getUTCHours() + 7) % 24;
+                    const nowUtc7Minutes = now.getUTCMinutes();
+                    const nowTotalMin = nowUtc7Hours * 60 + nowUtc7Minutes;
+                    const shiftTotalMin = h * 60 + m;
+                    const diffMin = nowTotalMin - shiftTotalMin;
+                    if (diffMin > 5) { // 5 minute grace
+                        isLate = true;
+                        lateMinutes = diffMin;
+                    }
+                }
+            } catch (shiftErr) {
+                console.warn('[CheckIn] Shift lookup error (non-fatal):', shiftErr.message);
+            }
+
             // Persist record
             const record = {
                 staff_id,
@@ -108,7 +134,10 @@ class CheckInController {
                 gps_distance: gpsResult.distance || null,
                 qr_pass: qrResult.valid,
                 qr_session_id: qrResult.sessionId || null,
-                overall_pass: overallPass
+                overall_pass: overallPass,
+                is_late: isLate,
+                late_minutes: lateMinutes,
+                scheduled_time: scheduledTime
             };
 
             let savedRecord = null;
@@ -151,7 +180,10 @@ class CheckInController {
                 },
                 staff: { id: staff_id, code: staffCode, name: staffName },
                 checked_at: savedRecord?.checked_at || new Date().toISOString(),
-                db_saved: !!savedRecord
+                db_saved: !!savedRecord,
+                is_late: isLate,
+                late_minutes: lateMinutes,
+                scheduled_time: scheduledTime
             });
 
         } catch (err) {

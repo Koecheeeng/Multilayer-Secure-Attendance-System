@@ -71,4 +71,26 @@ router.get('/attendance/history', requireRole('admin', 'manager'), (req, res) =>
   checkInController.getHistory(req, res)
 );
 
+// Shift Schedules (recurring weekly)
+router.get('/shifts/schedules', requireRole('admin', 'manager'), (req, res) =>
+  adminController.listShiftSchedules(req, res)
+);
+router.post('/shifts/schedules', requireRole('admin'), (req, res) =>
+  adminController.createShiftSchedule(req, res)
+);
+router.delete('/shifts/schedules/:id', requireRole('admin'), (req, res) =>
+  adminController.deleteShiftSchedule(req, res)
+);
+
+// Shift Overrides (one-off date assignments)
+router.get('/shifts/overrides', requireRole('admin', 'manager'), (req, res) =>
+  adminController.listShiftOverrides(req, res)
+);
+router.post('/shifts/overrides', requireRole('admin'), (req, res) =>
+  adminController.createShiftOverride(req, res)
+);
+router.delete('/shifts/overrides/:id', requireRole('admin'), (req, res) =>
+  adminController.deleteShiftOverride(req, res)
+);
+
 module.exports = router;

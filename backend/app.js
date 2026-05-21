@@ -17,9 +17,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Redirect root to login page
+// Redirect root to role selection index page
 app.get('/', (req, res) => {
-  res.redirect('/login.html');
+  res.redirect('/index.html');
 });
 
 // Serve static frontend files

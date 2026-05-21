@@ -170,6 +170,29 @@
 
         .footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px; }
 
+        /* Shift info & late notification */
+        .shift-banner {
+            border-radius: 16px; padding: 16px 18px; margin-bottom: 16px;
+            display: none; animation: fadeIn .2s ease;
+        }
+        .shift-banner.on-time {
+            background: rgba(6,118,71,0.06); border: 1px solid rgba(6,118,71,0.18);
+        }
+        .shift-banner.late {
+            background: rgba(180,35,24,0.06); border: 1px solid rgba(180,35,24,0.20);
+        }
+        .shift-banner .shift-title {
+            font-weight: 800; font-size: 15px; margin-bottom: 4px;
+        }
+        .shift-banner.late .shift-title { color: #b42318; }
+        .shift-banner.on-time .shift-title { color: #067647; }
+        .shift-banner .shift-detail { font-size: 13px; color: var(--muted); }
+        .late-badge-result {
+            display: inline-block; padding: 8px 14px; border-radius: 12px;
+            background: rgba(180,35,24,0.08); color: #b42318;
+            font-size: 14px; font-weight: 700; margin-top: 10px;
+        }
+
         @media (max-width: 520px) {
             .stat-row { grid-template-columns: 1fr; }
             .topbar { height: auto; flex-direction: column; align-items: flex-start; }
@@ -246,6 +269,10 @@
                     <div style="font-weight:700; font-size:14px; color:var(--success);">Signed in as:</div>
                     <div id="loggedInName" style="font-size:16px; font-weight:800; margin-top:4px;"></div>
                     <div id="loggedInCode" style="font-size:12px; color:var(--muted);"></div>
+                </div>
+                <div id="shiftBanner" class="shift-banner">
+                    <div class="shift-title" id="shiftBannerTitle"></div>
+                    <div class="shift-detail" id="shiftBannerDetail"></div>
                 </div>
                 <button id="btnLogout" style="display:none; margin-top:12px; width:100%; padding:10px 14px; border-radius:12px; border:1px solid rgba(180,35,24,0.2); background:rgba(180,35,24,0.06); color:#b42318; font-size:13px; font-weight:700; cursor:pointer; text-align:center;">← Sign Out</button>
             </div>
@@ -351,6 +378,37 @@
             }
         }
 
+        // Fetch shift info and show banner
+        async function fetchShiftInfo() {
+            try {
+                if (!state.accessToken) return;
+                const res = await fetch('/api/staff/my-shift', {
+                    headers: { Authorization: `Bearer ${state.accessToken}` }
+                });
+                const json = await res.json();
+                const banner = qs('shiftBanner');
+                if (!json.success || !json.data) {
+                    banner.style.display = 'none';
+                    return;
+                }
+                const shift = json.data;
+                banner.style.display = 'block';
+                if (shift.is_late) {
+                    banner.className = 'shift-banner late';
+                    qs('shiftBannerTitle').textContent = `⚠ You are ${shift.late_minutes} minute${shift.late_minutes !== 1 ? 's' : ''} late!`;
+                    qs('shiftBannerDetail').textContent = `Your shift was scheduled at ${shift.start_time}. Please check in immediately.`;
+                } else {
+                    banner.className = 'shift-banner on-time';
+                    qs('shiftBannerTitle').textContent = `✓ Your shift today: ${shift.start_time}${shift.end_time ? ' – ' + shift.end_time : ''}`;
+                    qs('shiftBannerDetail').textContent = shift.source === 'override'
+                        ? 'Special assignment for today' + (shift.notes ? ' — ' + shift.notes : '')
+                        : 'Recurring weekly schedule';
+                }
+            } catch (e) {
+                console.warn('Shift info fetch failed:', e);
+            }
+        }
+
         // Login handler
         qs('btnLogin').addEventListener('click', async () => {
             const email = qs('loginEmail').value.trim();
@@ -401,6 +459,9 @@
                 btn.textContent = 'Continue →';
                 btn.disabled = false;
 
+                // Fetch and show shift info / late notification
+                await fetchShiftInfo();
+
                 // Continue to verification
                 btn.onclick = () => { goStep(2); runVerification(); };
                 msg.textContent = '';
@@ -421,6 +482,7 @@
             qs('loginPassword').disabled = false; qs('loginPassword').value = '';
             qs('loggedInInfo').style.display = 'none';
             qs('btnLogout').style.display = 'none';
+            qs('shiftBanner').style.display = 'none';
             qs('step1Msg').textContent = '';
             const btn = qs('btnLogin');
             btn.textContent = 'Sign In →';
@@ -607,9 +669,17 @@
             const b = qs('uiResultBanner');
             qs('uiResultIcon').textContent = data.overall_pass ? '✓' : '✗';
             qs('uiResultTitle').textContent = data.overall_pass ? 'Check-In Successful!' : 'Check-In Failed';
-            qs('uiResultSub').textContent = data.overall_pass
-                ? `${data.staff.name} — ${new Date(data.checked_at).toLocaleTimeString('id-ID')}`
-                : 'One or more validation layers did not pass';
+
+            let subText = '';
+            if (data.overall_pass) {
+                subText = `${data.staff.name} — ${new Date(data.checked_at).toLocaleTimeString('id-ID')}`;
+            } else {
+                subText = 'One or more validation layers did not pass';
+            }
+            qs('uiResultSub').innerHTML = subText +
+                (data.is_late ? `<div class="late-badge-result">⚠ LATE by ${data.late_minutes} minute${data.late_minutes !== 1 ? 's' : ''} (shift: ${data.scheduled_time})</div>` : 
+                 (data.scheduled_time ? '<div style="margin-top:8px;padding:8px 14px;border-radius:12px;background:rgba(6,118,71,0.08);color:#067647;font-size:14px;font-weight:700;display:inline-block;">✓ On Time</div>' : ''));
+
             b.className = 'result-banner ' + (data.overall_pass ? 'pass' : 'fail');
 
             const c = qs('uiResultChecks');
@@ -635,6 +705,7 @@
             qs('loginPassword').disabled = false; qs('loginPassword').value = '';
             qs('loggedInInfo').style.display = 'none';
             qs('btnLogout').style.display = 'none';
+            qs('shiftBanner').style.display = 'none';
             const btn = qs('btnLogin');
             btn.textContent = 'Sign In →';
             btn.onclick = null;
@@ -653,7 +724,8 @@
                 });
                 const profileData = await res.json();
                 if (!res.ok || !profileData.success) {
-                    await supabase.auth.signOut();
+                    // Do not sign out globally to prevent logging out admin sessions in other tabs
+                    state.accessToken = null;
                     return;
                 }
 
@@ -673,6 +745,9 @@
                 const btn = qs('btnLogin');
                 btn.textContent = 'Continue →';
                 btn.onclick = () => { goStep(2); runVerification(); };
+
+                // Show shift info / late notification
+                await fetchShiftInfo();
             } catch (e) {
                 console.error('Session check failed:', e);
             }

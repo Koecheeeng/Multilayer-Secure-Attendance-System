@@ -414,6 +414,181 @@ class AdminController {
       return res.status(500).json({ success: false, error: err.message });
     }
   }
+
+  // ── Shift Schedules (recurring weekly) ──
+
+  async listShiftSchedules(req, res) {
+    try {
+      const { staffId } = req.query;
+      let query = supabase
+        .from('shift_schedules')
+        .select(`*, staff_profiles(id, staff_code, full_name, department)`)
+        .order('day_of_week', { ascending: true })
+        .order('start_time', { ascending: true });
+
+      if (staffId) query = query.eq('staff_id', staffId);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return res.json({ success: true, data: data || [] });
+    } catch (err) {
+      console.error('List shift schedules error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async createShiftSchedule(req, res) {
+    try {
+      const { staff_id, day_of_week, start_time, end_time } = req.body;
+
+      if (!staff_id || day_of_week === undefined || !start_time) {
+        return res.status(400).json({
+          success: false,
+          error: 'staff_id, day_of_week, and start_time are required'
+        });
+      }
+
+      if (day_of_week < 0 || day_of_week > 6) {
+        return res.status(400).json({ success: false, error: 'day_of_week must be 0-6 (Sun-Sat)' });
+      }
+
+      const { data, error } = await supabase
+        .from('shift_schedules')
+        .upsert({
+          staff_id,
+          day_of_week: parseInt(day_of_week),
+          start_time,
+          end_time: end_time || null,
+          created_by: req.authUser.id
+        }, { onConflict: 'staff_id,day_of_week' })
+        .select(`*, staff_profiles(id, staff_code, full_name, department)`)
+        .single();
+
+      if (error) throw error;
+
+      return res.status(201).json({ success: true, data });
+    } catch (err) {
+      console.error('Create shift schedule error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async deleteShiftSchedule(req, res) {
+    try {
+      const { id } = req.params;
+      const { error } = await supabase.from('shift_schedules').delete().eq('id', id);
+      if (error) throw error;
+      return res.json({ success: true, message: 'Shift schedule deleted' });
+    } catch (err) {
+      console.error('Delete shift schedule error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  // ── Shift Overrides (one-off date assignments) ──
+
+  async listShiftOverrides(req, res) {
+    try {
+      const { staffId, from, to } = req.query;
+      let query = supabase
+        .from('shift_overrides')
+        .select(`*, staff_profiles(id, staff_code, full_name, department)`)
+        .order('shift_date', { ascending: false });
+
+      if (staffId) query = query.eq('staff_id', staffId);
+      if (from) query = query.gte('shift_date', from);
+      if (to) query = query.lte('shift_date', to);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return res.json({ success: true, data: data || [] });
+    } catch (err) {
+      console.error('List shift overrides error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async createShiftOverride(req, res) {
+    try {
+      const { staff_id, shift_date, start_time, end_time, notes } = req.body;
+
+      if (!staff_id || !shift_date || !start_time) {
+        return res.status(400).json({
+          success: false,
+          error: 'staff_id, shift_date, and start_time are required'
+        });
+      }
+
+      const { data, error } = await supabase
+        .from('shift_overrides')
+        .upsert({
+          staff_id,
+          shift_date,
+          start_time,
+          end_time: end_time || null,
+          notes: notes ? String(notes).trim() : null,
+          created_by: req.authUser.id
+        }, { onConflict: 'staff_id,shift_date' })
+        .select(`*, staff_profiles(id, staff_code, full_name, department)`)
+        .single();
+
+      if (error) throw error;
+
+      return res.status(201).json({ success: true, data });
+    } catch (err) {
+      console.error('Create shift override error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async deleteShiftOverride(req, res) {
+    try {
+      const { id } = req.params;
+      const { error } = await supabase.from('shift_overrides').delete().eq('id', id);
+      if (error) throw error;
+      return res.json({ success: true, message: 'Shift override deleted' });
+    } catch (err) {
+      console.error('Delete shift override error:', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  // ── Get today's shift for a specific staff ──
+
+  static async getStaffShiftForDate(staffId, date) {
+    // Convert to UTC+7 (Asia/Jakarta) for correct local day/date
+    const utc7 = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+    const dateStr = utc7.toISOString().split('T')[0];
+    const dayOfWeek = utc7.getUTCDay(); // 0=Sun, in UTC+7
+
+    // 1. Check for override first (takes priority)
+    const { data: override } = await supabase
+      .from('shift_overrides')
+      .select('*')
+      .eq('staff_id', staffId)
+      .eq('shift_date', dateStr)
+      .single();
+
+    if (override) {
+      return { start_time: override.start_time, end_time: override.end_time, source: 'override', notes: override.notes };
+    }
+
+    // 2. Fall back to recurring weekly schedule
+    const { data: schedule } = await supabase
+      .from('shift_schedules')
+      .select('*')
+      .eq('staff_id', staffId)
+      .eq('day_of_week', dayOfWeek)
+      .single();
+
+    if (schedule) {
+      return { start_time: schedule.start_time, end_time: schedule.end_time, source: 'schedule' };
+    }
+
+    return null; // No shift assigned
+  }
 }
 
 module.exports = AdminController;
